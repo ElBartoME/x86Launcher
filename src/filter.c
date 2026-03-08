@@ -393,7 +393,7 @@ int filter_GetTechSpecs(state_t *state, gamedata_t *gamedata, launchdat_t *filte
 	if (FILTER_VERBOSE){
 		printf("%s.%d\t Sorting keywords\n", __FILE__, __LINE__);
 	}
-	sortFilterKeys(state, next_pos);
+	//sortFilterKeys(state, next_pos);
 	
 	state->available_filter_strings = next_pos;
 	state->current_filter_page = 0;
