@@ -175,10 +175,17 @@ int ui_DisplayArtwork(FILE *screenshot_file, bmpdata_t *screenshot_bmp, bmpstate
 		}
 		pal_ResetFree();
 		status = bmp_ReadImage(screenshot_file, screenshot_bmp, 1, 1, 0);
+		pal_BMP2Palette(screenshot_bmp, 0);
+		pal_Set(0, 0, 0, 0);  // Force entry 0 to black regardless of artwork  // explicitly load artwork palette, reserved=0
 		has_screenshot = 1;	
 		if (has_screenshot){
 			screenshot_state->rows_remaining = screenshot_bmp->height;
-			status = gfx_BitmapAsyncFull(ui_artwork_xpos + ((ui_artwork_width - screenshot_bmp->width) / 2) , ui_artwork_ypos + ((ui_artwork_height - screenshot_bmp->height) / 2), screenshot_bmp, ui_asset_reader, screenshot_state, 0, 0);
+			status = gfx_BitmapAsyncFull(
+				ui_artwork_xpos + ((ui_artwork_width - screenshot_bmp->width) / 2),
+				ui_artwork_ypos + ((ui_artwork_height - screenshot_bmp->height) / 2),
+				screenshot_bmp,
+				screenshot_file,   // <-- was ui_asset_reader, should be screenshot_file
+				screenshot_state, 0, 0);
 		}
 	}
 	if (UI_VERBOSE){
@@ -712,14 +719,14 @@ int ui_DrawSplash(){
 	// ===============================================
 	
 	// 1a. Allocate enough space for the bitmap header
-	logo_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	logo_bmp = (bmpdata_t *) calloc(1, sizeof(bmpdata_t));
 	if (logo_bmp == NULL){
 		printf("%s.%d\t ui_DrawSplash() Unable to allocate memory for splash bitmap.\n", __FILE__, __LINE__);
 		fclose(ui_asset_reader);
 		return UI_ERR_BMP;
 	}
 	// 1b. Allocate enough space for the state structure and line buffer
-	logo_bmpstate = (bmpstate_t *) malloc(sizeof(bmpstate_t));
+	logo_bmpstate = (bmpstate_t *) calloc(1, sizeof(bmpstate_t));
 	if (logo_bmpstate == NULL){
 		printf("%s.%d\t ui_DrawSplash() Unable to allocate memory for splash bitmap state.\n", __FILE__, __LINE__);
 		fclose(ui_asset_reader);
@@ -797,7 +804,7 @@ int ui_LoadAssets(){
 			ui_ProgressMessage("ERROR! Unable to open browser select icon file");
 			return UI_ERR_FILE;     
 	}
-	ui_select_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_select_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_select_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for browser select icon.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for browser select icon");
@@ -827,7 +834,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open checkbox icon file");
 		return UI_ERR_FILE;     
 	}
-	ui_checkbox_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_checkbox_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_checkbox_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for checkbox icon.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory of checkbox icon");
@@ -856,7 +863,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open checkbox chooser icon file");
 		return UI_ERR_FILE;     
 	}
-	ui_checkbox_choose_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_checkbox_choose_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_checkbox_choose_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for checkbox chooser icon.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory of checkbox chooser icon");
@@ -885,7 +892,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open checkbox (empty) icon file");
 		return UI_ERR_FILE;     
 	}
-	ui_checkbox_empty_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_checkbox_empty_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_checkbox_empty_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for checkbox(empty) icon.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory of checkbox (empty) icon");
@@ -915,7 +922,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open title text-file");
 		return UI_ERR_FILE;     
 	}
-	ui_title_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_title_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_title_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for title text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for title-text");
@@ -944,7 +951,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open year text-file");
 		return UI_ERR_FILE;     
 	}
-	ui_year_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_year_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_year_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for year text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for year-text");
@@ -973,7 +980,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open genre-text file");
 		return UI_ERR_FILE;     
 	}
-	ui_genre_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_genre_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_genre_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for genre text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for genre-text");
@@ -1002,7 +1009,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open company-text file");
 		return UI_ERR_FILE;     
 	}
-	ui_company_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_company_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_company_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for company text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for company-text");
@@ -1031,7 +1038,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open series-text file");
 		return UI_ERR_FILE;     
 	}
-	ui_series_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_series_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_series_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for series text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for series-text");
@@ -1060,7 +1067,7 @@ int ui_LoadAssets(){
 		ui_ProgressMessage("ERROR! Unable to open path-text file");
 		return UI_ERR_FILE;     
 	}
-	ui_path_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_path_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_path_bmp == NULL){
 		printf("%s.%d\t ui_LoadAssets() Unable to allocate memory for path text.\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for path-text");
@@ -1095,7 +1102,7 @@ int ui_LoadAssets(){
 		return UI_ERR_FILE;     
 	}
 	// 1b. Allocate enough space for the bitmap header
-	ui_main_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_main_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_main_bmp == NULL){
 		printf("%s.%d\t ui_DrawSplash() Unable to allocate memory for main UI bg\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for main UI bg");
@@ -1103,7 +1110,7 @@ int ui_LoadAssets(){
 		return UI_ERR_BMP;
 	}
 	// 1c. Allocate enough space for the state structure and line buffer
-	ui_main_bmpstate = (bmpstate_t *) malloc(sizeof(bmpstate_t));
+	ui_main_bmpstate = (bmpstate_t *) calloc(1,sizeof(bmpstate_t));
 	if (ui_main_bmpstate == NULL){
 		printf("%s.%d\t ui_DrawSplash() Unable to allocate memory for main UI bg state\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for main UI bg state");
@@ -1128,7 +1135,7 @@ int ui_LoadAssets(){
 		return UI_ERR_FILE;     
 	}
 	// 1b. Allocate enough space for the bitmap header
-	ui_list_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_list_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	if (ui_list_bmp == NULL){
 		printf("%s.%d\t ui_DrawSplash() Unable to allocate memory for browser bg\n", __FILE__, __LINE__);
 		ui_ProgressMessage("ERROR! Unable to allocate memory for browser bg");
@@ -1167,8 +1174,8 @@ int ui_LoadFonts(){
 		return UI_ERR_FILE;     
 	}
 	
-	ui_font = (fontdata_t *) malloc(sizeof(fontdata_t));
-	ui_font_bmp = (bmpdata_t *) malloc(sizeof(bmpdata_t));
+	ui_font = (fontdata_t *) calloc(1,sizeof(fontdata_t));
+	ui_font_bmp = (bmpdata_t *) calloc(1,sizeof(bmpdata_t));
 	ui_font_bmp->pixels = NULL;
 	status = bmp_ReadFont(ui_asset_reader, ui_font_bmp, ui_font, 1, 0, 0, ui_font_width, ui_font_height);
 	status = bmp_ReadFont(ui_asset_reader, ui_font_bmp, ui_font, 0, 1, 0, ui_font_width, ui_font_height);

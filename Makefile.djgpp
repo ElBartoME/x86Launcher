@@ -1,0 +1,18 @@
+CC = i586-pc-msdosdjgpp-gcc
+CFLAGS = -Wall -O2 -march=i386
+LDFLAGS = -lm
+
+SRCS = src/main.c src/gfx.c src/vesa.c src/ui.c src/data.c src/bmp.c src/filter.c src/fstools.c src/ini.c src/input.c src/palette.c src/timers.c src/utils.c
+OBJS = $(SRCS:.c=.o)
+TARGET = launcher.exe
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	del /Q src\*.o $(TARGET)

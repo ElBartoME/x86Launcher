@@ -31,9 +31,13 @@ int input_get(){
 	
 	if (kbhit()){
 		k = getch();
-		if (k == 0){
-			k = getch();
-		}
+        if (k == 0) k = getch();
+
+        while (kbhit()){
+            k = getch();
+            if (k == 0) k = getch();
+        }
+
 		switch(k){
 			case(input_select):
 				return input_select;

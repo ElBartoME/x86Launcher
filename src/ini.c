@@ -110,7 +110,7 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
     int error = 0;
 
 #if !INI_USE_STACK
-    line = (char*)malloc(INI_INITIAL_ALLOC);
+    line = (char*)calloc(1,INI_INITIAL_ALLOC);
     if (!line) {
         return -2;
     }

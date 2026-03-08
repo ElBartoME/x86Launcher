@@ -73,7 +73,7 @@ typedef struct bmpdata {
 	unsigned long int 	size;			// Size of the pixel data, in bytes
 	unsigned long int	n_pixels;		// Number of pixels
 	struct pal_entry	palette[256];	// Palette entries for 8bit indexed images
-	unsigned char __huge	*pixels;			// Pointer to raw pixels - in font mode each byte is a single pixel
+	unsigned char 	*pixels;			// Pointer to raw pixels - in font mode each byte is a single pixel
 } bmpdata_t;
 
 // ============================
@@ -84,7 +84,7 @@ typedef struct bmpdata {
 typedef struct bmpstate {
 	unsigned int	width_bytes;
 	unsigned int	rows_remaining;	// Total number of rows left to be read
-	//unsigned char __huge	*pixels;			// Needs to be malloc'ed to the width of a single row of pixels
+	//unsigned char 	*pixels;			// Needs to be malloc'ed to the width of a single row of pixels
 	unsigned char pixels[640];	// Total number of pixels in the width of any bitmap
 } bmpstate_t;
 

@@ -103,40 +103,44 @@ int dirFromPath(char *path, char *buffer){
 }
 
 int isDir(char *path){
-	/* Boolean test to check if a path is a directory or not */
-
-	DIR *dir;
-	int dir_type;
-	
-	dir = opendir(path);
-	if (dir != NULL){
-		dir_type = 1;
-	} else {
-		dir_type = 0;	
-	}
-	closedir(dir);
-	return dir_type;
+    DIR *dir;
+    int dir_type;
+    
+    dir = opendir(path);
+    if (dir != NULL){
+        dir_type = 1;
+        closedir(dir);
+    } else {
+        dir_type = 0;   
+    }
+    return dir_type;
 }
 
 int dirHasData(char *path){
-	/* Return 1 if a __launch.dat file is found in a given directory, 0 if missing */
-	
-	FILE *f;
-	int found;
-	char filepath[DIR_BUFFER_SIZE];
-	
-	strcpy(filepath, path);
-	strcat(filepath, "\\");
-	strcat(filepath, GAMEDAT);
-	
-	f = fopen(filepath, "r");
-	if (f != NULL){
-		found = 1;
-	} else {
-		found = 0;	
-	}
-	fclose(f);
-	return found;
+    /* Return 1 if a __launch.dat file is found in a given directory, 0 if missing */
+    
+    FILE *f;
+    int found;
+    char filepath[DIR_BUFFER_SIZE];
+    
+    /* Guard against buffer overflow */
+    if ((strlen(path) + strlen(GAMEDAT) + 2) >= DIR_BUFFER_SIZE) {
+        printf("%s.%d\t Path too long in dirHasData: %s\n", __FILE__, __LINE__, path);
+        return 0;
+    }
+    
+    strcpy(filepath, path);
+    strcat(filepath, "\\");
+    strcat(filepath, GAMEDAT);
+    
+    f = fopen(filepath, "r");
+    if (f != NULL) {
+        found = 1;
+        fclose(f);  /* Only close if successfully opened */
+    } else {
+        found = 0;
+    }
+    return found;
 }
 
 int findDirs(char *path, gamedata_t *gamedata, int startnum, config_t *config, launchdat_t *launchdat){
@@ -267,17 +271,21 @@ int findDirs(char *path, gamedata_t *gamedata, int startnum, config_t *config, l
 }
 
 int zeroRunBat(){
-	// Empty contents of the run.bat file
-	FILE *runbat;
-	
-	if (FS_VERBOSE){
-		printf("%s.%d\t Emptying the %s call file\n", __FILE__, __LINE__, RUNBAT);
-	}
-	runbat = fopen(RUNBAT, "w");
-	if (runbat != NULL){
-		fclose(runbat);
-	}
-	return 0;
+    FILE *runbat;
+    FILE *quitfile;
+    
+    if (FS_VERBOSE){
+        printf("%s.%d\t Emptying the %s call file\n", __FILE__, __LINE__, RUNBAT);
+    }
+    runbat = fopen(RUNBAT, "w");
+    if (runbat != NULL){
+        fclose(runbat);
+    }
+    quitfile = fopen("QUIT.TXT", "w");
+    if (quitfile != NULL){
+        fclose(quitfile);
+    }
+    return 0;
 }
 
 int writeRunBat(state_t *state, launchdat_t *launchdat){

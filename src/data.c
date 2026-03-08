@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <dos.h>
 #include <direct.h>
+#include <unistd.h>
 
 #include "ini.h"
 #ifndef __HAS_DATA
@@ -135,7 +136,7 @@ int swapGamedata(gamedata_t *gamedata1, gamedata_t *gamedata2){
 	/* swap one game object with another */
 	
 	gamedata_t *gdata_temp = NULL;
-	gdata_temp = (gamedata_t *) malloc(sizeof(gamedata_t));
+	gdata_temp = (gamedata_t *) calloc(1,sizeof(gamedata_t));
 	
 	/* keep temp store of gamedata1 */
 	gdata_temp->gameid = gamedata1->gameid;
@@ -540,7 +541,7 @@ int getDirList(config_t *config, gamedir_t *gamedir, int verbose){
 				}
 				found++;
 				gamedir = getLastGameDir(gamedir);
-				gamedir->next = (gamedir_t *) malloc(sizeof(gamedir_t));
+				gamedir->next = (gamedir_t *) calloc(1,sizeof(gamedir_t));
 				strcpy(gamedir->next->path, p);
 				gamedir->next->next = NULL;
 				

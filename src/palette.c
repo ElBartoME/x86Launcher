@@ -53,7 +53,7 @@ int pal_BMP2Palette_(bmpdata_t *bmpdata, bmpstate_t *bmpstate, int reserved, int
 	
 	int i;
 	int f;
-	
+
 	if (reserved == 1){
 		// Set palette entries for the restricted region (UI elements)
 		
@@ -116,7 +116,7 @@ int pal_BMP2Palette_(bmpdata_t *bmpdata, bmpstate_t *bmpstate, int reserved, int
 				// Free palettes have been exceeded for this image, so stop
 				return -1;	
 			}
-		}			
+		}	
 		return bmpdata->colours;
 	}
 }
@@ -220,7 +220,6 @@ void pal_ResetAll(){
 
 void pal_ResetFree(){
 	// Reset non-reserved palette entries
-	
 	unsigned int i;
 	
 	if (PALETTE_VERBOSE){
