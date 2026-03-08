@@ -53,7 +53,7 @@ unsigned char vga_dac_type = VGA_PALETTE_6BPP;
 static unsigned long lfb_phys_address = 0;
 static __dpmi_meminfo lfb_meminfo;
 
-int gfx_Init() {
+int gfx_Init(short hsync_shift) {
 	// Initialise graphics to a set of configured defaults
 
 
@@ -134,6 +134,7 @@ int gfx_Init() {
 		if (GFX_VERBOSE) {
 			printf("%s.%d\t gfx_Init() Set VESA mode %xh\n", __FILE__, __LINE__, GFX_VESA_DESIRED);
 		}
+		vesa_AdjustHSync(hsync_shift);
 	}
 
 	// Map the LFB using DPMI - ONE call only

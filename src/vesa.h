@@ -93,3 +93,4 @@ int 		vesa_SetWindow(unsigned short int position);
 void 	vesa_PrintVBEInfo(vbeinfo_t *vbeinfo);
 void 	vesa_PrintVBEModes(vbeinfo_t *vbeinfo);
 void 	vesa_PrintVBEModeInfo(vesamodeinfo_t *modeinfo);
+void vesa_AdjustHSync(int shift);

@@ -271,3 +271,34 @@ void vesa_PrintVBEModeInfo(vesamodeinfo_t *modeinfo) {
 	printf("%s.%d\t vesa_PrintVBEModeInfo() End of VESA mode information\n", __FILE__, __LINE__);
 	printf("----------\n");
 }
+
+void vesa_AdjustHSync(int shift) {
+    // Adjust horizontal sync position to correct CRT image shift.
+    // 'shift' is a signed pixel offset (negative = shift image left).
+    // Each CRTC unit is ~8 pixels (one character clock) in 640px modes.
+
+    unsigned char hsync_start, hsync_end;
+
+    // Unlock CRTC registers 0-7 (clear protect bit in reg 0x11)
+    outportb(0x3D4, 0x11);
+    unsigned char reg11 = inportb(0x3D5);
+    outportb(0x3D5, reg11 & 0x7F);
+
+    // Read current Horizontal Sync Start
+    outportb(0x3D4, 0x04);
+    hsync_start = inportb(0x3D5);
+
+    // Read current Horizontal Sync End (lower 5 bits only)
+    outportb(0x3D4, 0x05);
+    hsync_end = inportb(0x3D5);
+
+    // Apply shift (in character clocks, 1 unit ≈ 8 pixels)
+    // Positive shift moves image right, negative moves it left
+    hsync_start += shift;
+    hsync_end   = (hsync_end & 0xE0) | ((hsync_end + shift) & 0x1F);
+
+    outportb(0x3D4, 0x04);
+    outportb(0x3D5, hsync_start);
+    outportb(0x3D4, 0x05);
+    outportb(0x3D5, hsync_end);
+}

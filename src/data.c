@@ -366,6 +366,7 @@ void configDefaults(config_t *config){
 	config->preload_names = 0;
 	config->dir = NULL;
 	config->keyboard_test = 0;
+	config->hsync_shift = 0;
 }
 
 int getLaunchdata(gamedata_t *gamedata, launchdat_t *launchdat){
@@ -415,6 +416,8 @@ static int configHandler(void* user, const char* section, const char* name, cons
 		config->keyboard_test =  atoi(value);
 	} else if (MATCH("default", "timers")){
 		config->timers =  atoi(value);
+	} else if (MATCH("display", "hsync_shift")){
+    config->hsync_shift = atoi(value);
 	} else {
 		return 0;  /* unknown section/name, error */
 	}

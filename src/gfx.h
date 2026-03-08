@@ -57,7 +57,7 @@ void gfx_Clear();
 void gfx_Close();
 void gfx_Flip();
 long int gfx_GetXYaddr(unsigned short int x, unsigned short int y);
-int gfx_Init();
+int gfx_Init(short hsync_shift);
 int gfx_Puts(int x, int y, fontdata_t *fontdata, char *c);
 void gfx_TextOff();
 void gfx_TextOn();

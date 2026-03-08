@@ -112,6 +112,7 @@ typedef struct config {
 	short save;						// Save the list of all games to a text file
 	short preload_names;				// Flag to indicate wheter a launch.dat is loaded at scrape-time to pick up real names
 	short keyboard_test;
+	short hsync_shift;
 	char dirs[MAX_SEARCHDIRS_SIZE];	// String containing all game dirs to search - it will then be parsed into a list below:
 	struct gamedir *dir;				// List of all the game search dirs
 } config_t;

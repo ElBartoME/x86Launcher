@@ -220,7 +220,7 @@ int main() {
 		printf("%s.%d\t Now initialising VESA graphics mode\n", __FILE__, __LINE__);
 	}
 	start_time = clock();
-	status = gfx_Init();
+	status = gfx_Init(config->hsync_shift);
 	end_time = clock();
 	timers_Print(start_time, end_time, "GFX Init", config->timers);
 	if (status != 0) {
