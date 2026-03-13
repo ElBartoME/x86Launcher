@@ -204,6 +204,9 @@ static int launchdatHandler(void* user, const char* section, const char* name, c
 	} else if (MATCH("default", "images")){
 		strncpy(launchdat->images, value, IMAGE_BUFFER_SIZE);
 		
+	} else if (MATCH("default", "video")){
+		strncpy(launchdat->video, value, MAX_FILENAME_SIZE);
+
 	} else if (MATCH("default", "series")){
 		strncpy(launchdat->series, value, MAX_STRING_SIZE);
 	// audio hardware metadata 
@@ -321,6 +324,7 @@ void launchdataDefaults(launchdat_t *launchdat){
 	memset(launchdat->start, '\0', strlen(launchdat->start));
 	memset(launchdat->alt_start, '\0', strlen(launchdat->alt_start));
 	memset(launchdat->images, '\0', strlen(launchdat->images));
+	memset(launchdat->video,  '\0', strlen(launchdat->video));
 	memset(launchdat->series, '\0', strlen(launchdat->series));
 	launchdat->year = DEFAULT_YEAR;
 	launchdat->midi = 0;
@@ -491,7 +495,14 @@ int getImageList(launchdat_t *launchdat, imagefile_t *imagefile){
 	imagefile->selected = -1;
 	imagefile->first = -1;
 	imagefile->last = -1;
-	
+	imagefile->has_video = 0;
+
+	memset(imagefile->video_filename, '\0', MAX_FILENAME_SIZE);
+	if (launchdat->video != NULL && strlen(launchdat->video) > 0) {
+		strncpy(imagefile->video_filename, launchdat->video, MAX_FILENAME_SIZE);
+			imagefile->has_video = 1;
+	}	
+
 	if (launchdat->images != NULL){
 		strncpy(buffer, launchdat->images, IMAGE_BUFFER_SIZE);
 		p = strtok(buffer, ",; ");
@@ -505,13 +516,13 @@ int getImageList(launchdat_t *launchdat, imagefile_t *imagefile){
 				if (DATA_VERBOSE){
 					printf("%s.%d\t getImageList() Hit limit of %d image filenames\n", __FILE__, __LINE__, MAX_IMAGES);
 				}
-				imagefile->selected = 0;
-				imagefile->first = 0;
+				imagefile->selected = imagefile->has_video ? -1 : 0;
+				imagefile->first    = imagefile->has_video ? -1 : 0;
 				imagefile->last = found;
 				return found;
 			}
-			imagefile->selected = 0;
-			imagefile->first = 0;
+			imagefile->selected = imagefile->has_video ? -1 : 0;
+			imagefile->first    = imagefile->has_video ? -1 : 0;
 			imagefile->last = found;
 			found++;
 			p = strtok(NULL, ",; ");

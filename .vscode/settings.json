@@ -4,7 +4,7 @@
 		"-DCMAKE_MAKE_PROGRAM=${userHome}/.dos/ninja"
 	],
 	"cmake.generator": "Ninja",
-	"editor.formatOnSave": true,
+	"editor.formatOnSave": false,
 	"editor.tabSize": 4,
 	"makefile.configureOnOpen": false
 }

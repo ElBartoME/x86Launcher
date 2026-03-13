@@ -1201,7 +1201,7 @@ int main() {
 					// Cycle left through artwork
 					start_time = clock();
 					if (imagefile->last > -1) {
-						if (imagefile->selected > 0) {
+						if (imagefile->selected > imagefile->first) {
 							imagefile->selected -= 1;
 						} else {
 							imagefile->selected = imagefile->last;

@@ -88,6 +88,7 @@ typedef struct launchdat {
 	char start[MAX_FILENAME_SIZE];		// Name of the main start file
 	char alt_start[MAX_FILENAME_SIZE];	// Name of an alternative start file (e.g a config utility)
 	char images[IMAGE_BUFFER_SIZE];		// String containing all the image filenames
+	char video[MAX_FILENAME_SIZE];
 	struct hwdata *hardware;				// Pointer to hardware data
 } launchdat_t;
 
@@ -97,6 +98,8 @@ typedef struct imagefile {
 	short selected;
 	short first;
 	short last;
+	unsigned char has_video;
+	char video_filename[MAX_FILENAME_SIZE];
 } imagefile_t;
 
 // A list of game directories to search and scrape at run time.

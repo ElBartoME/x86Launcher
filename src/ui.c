@@ -21,6 +21,7 @@
 
 #include "data.h"
 #include "ui.h"
+#include "fli.h"
 
 #ifndef __HAS_GFX
 #include "gfx.h"
@@ -128,74 +129,116 @@ void ui_Close(){
 	}
 }
 
-int ui_DisplayArtwork(FILE *screenshot_file, bmpdata_t *screenshot_bmp, bmpstate_t *screenshot_state, state_t *state, imagefile_t *imagefile){
-
-	int status;
-	int has_screenshot;
-	char msg[65];
-	
-	// Restart artwork display
-	// =======================
-	// Close previous screenshot file handle
-	// =======================
-	if (screenshot_file != NULL){
-		fclose(screenshot_file);
-		screenshot_file = NULL;
-	}
-	
-	// Clear artwork window
-	gfx_BoxFill(ui_artwork_xpos, ui_artwork_ypos, ui_artwork_xpos + ui_artwork_width, ui_artwork_ypos + ui_artwork_height, PALETTE_UI_BLACK);
-	
-	// Construct full path of image
-	sprintf(msg, "%s\\%s", state->selected_game->path, imagefile->filename[imagefile->selected]);
-	strcpy(state->selected_image, msg);
-	if (UI_VERBOSE){
-		printf("%s.%d\t ui_DisplayArtwork() Selected artwork [%d] filename [%s]\n", __FILE__, __LINE__, imagefile->selected, imagefile->filename[imagefile->selected]);
-	}
-	
-	// =======================
-	// Open new screenshot file, ready parse
-	// =======================
-	if (UI_VERBOSE){
-		printf("%s.%d\t ui_DisplayArtwork() Opening artwork file\n", __FILE__, __LINE__);	
-	}
-	screenshot_file = fopen(state->selected_image, "rb");
-	if (screenshot_file == NULL){
-		if (UI_VERBOSE){
-			printf("%s.%d\t ui_DisplayArtwork() Error, unable to open artwork file\n", __FILE__, __LINE__);	
-		}
-		has_screenshot = 0;
-	} 
-	else {
-		// =======================
-		// Load header of screenshot bmp
-		// =======================
-		if (UI_VERBOSE){
-			printf("%s.%d\t ui_DisplayArtwork() Reading BMP header\n", __FILE__, __LINE__);	
-		}
-		pal_ResetFree();
-		status = bmp_ReadImage(screenshot_file, screenshot_bmp, 1, 1, 0);
-		pal_BMP2Palette(screenshot_bmp, 0);
-		pal_Set(0, 0, 0, 0);  // Force entry 0 to black regardless of artwork  // explicitly load artwork palette, reserved=0
-		has_screenshot = 1;	
-		if (has_screenshot){
-			screenshot_state->rows_remaining = screenshot_bmp->height;
-			status = gfx_BitmapAsyncFull(
-				ui_artwork_xpos + ((ui_artwork_width - screenshot_bmp->width) / 2),
-				ui_artwork_ypos + ((ui_artwork_height - screenshot_bmp->height) / 2),
-				screenshot_bmp,
-				screenshot_file,   // <-- was ui_asset_reader, should be screenshot_file
-				screenshot_state, 0, 0);
-		}
-	}
-	if (UI_VERBOSE){
-		printf("%s.%d\t ui_DisplayArtwork() Call to display %s complete\n", __FILE__, __LINE__, imagefile->filename[imagefile->selected]);	
-	}
-	if (screenshot_file != NULL){
-		fclose(screenshot_file);
-		screenshot_file = NULL;
-	}
-	return UI_OK;
+int ui_DisplayArtwork(FILE *screenshot_file, bmpdata_t *screenshot_bmp,
+                      bmpstate_t *screenshot_state, state_t *state,
+                      imagefile_t *imagefile) {
+ 
+    int  status;
+    int  has_screenshot;
+    char msg[65];
+    char video_path[MAX_PATH_SIZE + MAX_FILENAME_SIZE];
+ 
+    // -------------------------------------------------------
+    // If this game has a video preview AND we are looking at
+    // the first image slot, play the FLI clip instead of a
+    // BMP.  Left/right navigation still cycles BMPs normally
+    // when imagefile->selected != imagefile->first.
+    // -------------------------------------------------------
+    if (imagefile->has_video && imagefile->selected == -1) {
+ 
+        // Build full path to the video file
+        sprintf(video_path, "%s\\%s",
+                state->selected_game->path,
+                imagefile->video_filename);
+ 
+        if (UI_VERBOSE) {
+            printf("%s.%d\t ui_DisplayArtwork() Playing video: %s\n",
+                   __FILE__, __LINE__, video_path);
+        }
+ 
+        // Play once; user can press any key to skip.
+        // The artwork window coordinates and dimensions come from ui.h.
+        fli_PlayPreview(video_path,
+                        ui_artwork_xpos,
+                        ui_artwork_ypos,
+                        ui_artwork_width,
+                        ui_artwork_height,
+                        0);
+ 
+        // After the clip ends the artwork window is left showing the
+        // last frame.  gfx_Flip() was already called inside
+        // fli_PlayPreview for each frame, so no extra flip needed here.
+        return UI_OK;
+    }
+ 
+    // -------------------------------------------------------
+    // Original BMP artwork path - completely unchanged below
+    // -------------------------------------------------------
+ 
+    // Close previous screenshot file handle
+    if (screenshot_file != NULL) {
+        fclose(screenshot_file);
+        screenshot_file = NULL;
+    }
+ 
+    // Clear artwork window
+    gfx_BoxFill(ui_artwork_xpos, ui_artwork_ypos,
+                ui_artwork_xpos + ui_artwork_width,
+                ui_artwork_ypos + ui_artwork_height,
+                PALETTE_UI_BLACK);
+ 
+    // Construct full path of image
+    sprintf(msg, "%s\\%s",
+            state->selected_game->path,
+            imagefile->filename[imagefile->selected]);
+    strcpy(state->selected_image, msg);
+ 
+    if (UI_VERBOSE) {
+        printf("%s.%d\t ui_DisplayArtwork() Selected artwork [%d] filename [%s]\n",
+               __FILE__, __LINE__,
+               imagefile->selected,
+               imagefile->filename[imagefile->selected]);
+    }
+ 
+    screenshot_file = fopen(state->selected_image, "rb");
+    if (screenshot_file == NULL) {
+        if (UI_VERBOSE) {
+            printf("%s.%d\t ui_DisplayArtwork() Error, unable to open artwork file\n",
+                   __FILE__, __LINE__);
+        }
+        has_screenshot = 0;
+    } else {
+        if (UI_VERBOSE) {
+            printf("%s.%d\t ui_DisplayArtwork() Reading BMP header\n",
+                   __FILE__, __LINE__);
+        }
+        pal_ResetFree();
+        status = bmp_ReadImage(screenshot_file, screenshot_bmp, 1, 1, 0);
+        pal_BMP2Palette(screenshot_bmp, 0);
+        pal_Set(0, 0, 0, 0);
+        has_screenshot = 1;
+        if (has_screenshot) {
+            screenshot_state->rows_remaining = screenshot_bmp->height;
+            status = gfx_BitmapAsyncFull(
+                ui_artwork_xpos + ((ui_artwork_width  - screenshot_bmp->width)  / 2),
+                ui_artwork_ypos + ((ui_artwork_height - screenshot_bmp->height) / 2),
+                screenshot_bmp,
+                screenshot_file,
+                screenshot_state, 0, 0);
+        }
+    }
+ 
+    if (UI_VERBOSE) {
+        printf("%s.%d\t ui_DisplayArtwork() Call to display %s complete\n",
+               __FILE__, __LINE__,
+               imagefile->filename[imagefile->selected]);
+    }
+ 
+    if (screenshot_file != NULL) {
+        fclose(screenshot_file);
+        screenshot_file = NULL;
+    }
+    return UI_OK;
 }
 
 int	ui_DrawConfirmPopup(state_t *state, gamedata_t *gamedata, launchdat_t *launchdat){
@@ -1437,7 +1480,7 @@ int ui_UpdateInfoPane(state_t *state, gamedata_t *gamedata, launchdat_t *launchd
 					printf("%s.%d\t ui_UpdateInfoPane()  - start file: [%s]\n", __FILE__, __LINE__, launchdat->start);
 					printf("%s.%d\t ui_UpdateInfoPane()  - alt_start file: [%s]\n", __FILE__, __LINE__, launchdat->alt_start);
 					printf("%s.%d\t ui_UpdateInfoPane()  - midi: [%d]\n", __FILE__, __LINE__, launchdat->midi);
-					printf("%s.%d\t ui_UpdateInfoPane()  - midi serial: [%s]\n", __FILE__, __LINE__, launchdat->midi_serial);
+					printf("%s.%d\t ui_UpdateInfoPane()  - midi serial: [%d]\n", __FILE__, __LINE__, launchdat->midi_serial);
 				}
 				
 				gfx_Bitmap(ui_checkbox_has_metadata_xpos, ui_checkbox_has_metadata_ypos, ui_checkbox_bmp);
