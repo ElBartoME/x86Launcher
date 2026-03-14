@@ -56,9 +56,14 @@
 #include "filter.h"
 #include "timers.h"
 
+#include "sb.h"
+
 int main() {
 
 	//gdb_start();
+
+	setvbuf(stdout, NULL, _IONBF, 0);
+    freopen("debug.txt", "w", stdout);
 
 	/* Lets get this show on the road!!! */
 
@@ -240,6 +245,15 @@ int main() {
 		return 1;
 	} else {
 		printf("%s.%d\t Valid graphics mode found\n", __FILE__, __LINE__);
+	}
+
+	// ======================
+	// Initialise Sound Blaster
+	// ======================
+	if (sb_Init() == SB_OK) {
+		printf("Sound Blaster detected - audio enabled\n");
+	} else {
+		printf("No Sound Blaster detected - audio disabled\n");
 	}
 
 	// Do basic UI initialisation
@@ -604,6 +618,8 @@ int main() {
 		printf("%s.%d\t Entering main input loop now...\n", __FILE__, __LINE__);
 	}
 	while (exit == 0) {
+		sb_Tick();
+
 		user_input = input_get();
 
 		// ==================================================
@@ -1322,6 +1338,20 @@ int main() {
 						}
 
 						// =======================
+						// Start audio for this game
+						// =======================
+						sb_Stop();
+						if (imagefile->has_audio) {
+							char audio_path[MAX_PATH_SIZE + MAX_FILENAME_SIZE];
+							sprintf(audio_path, "%s\\%s",
+									state->selected_game->path,
+									imagefile->audio_filename);
+							if (sb_LoadWAV(audio_path) == SB_OK) {
+								sb_Play();
+							}
+						}
+
+						// =======================
 						// Select first screenshot/artwork to show
 						// =======================
 						if (state->has_images) {
@@ -1364,6 +1394,8 @@ int main() {
 
 	ui_Close();
 	gfx_Close();
+
+	sb_Shutdown();
 
 	printf("x86Launcher exiting...\n\n");
 

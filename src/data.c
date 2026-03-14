@@ -207,6 +207,9 @@ static int launchdatHandler(void* user, const char* section, const char* name, c
 	} else if (MATCH("default", "video")){
 		strncpy(launchdat->video, value, MAX_FILENAME_SIZE);
 
+	} else if (MATCH("default", "audio")){
+    	strncpy(launchdat->audio, value, MAX_FILENAME_SIZE);
+
 	} else if (MATCH("default", "series")){
 		strncpy(launchdat->series, value, MAX_STRING_SIZE);
 	// audio hardware metadata 
@@ -324,7 +327,8 @@ void launchdataDefaults(launchdat_t *launchdat){
 	memset(launchdat->start, '\0', strlen(launchdat->start));
 	memset(launchdat->alt_start, '\0', strlen(launchdat->alt_start));
 	memset(launchdat->images, '\0', strlen(launchdat->images));
-	memset(launchdat->video,  '\0', strlen(launchdat->video));
+	memset(launchdat->video,  '\0', MAX_FILENAME_SIZE);
+	memset(launchdat->audio, '\0', MAX_FILENAME_SIZE);
 	memset(launchdat->series, '\0', strlen(launchdat->series));
 	launchdat->year = DEFAULT_YEAR;
 	launchdat->midi = 0;
@@ -496,12 +500,20 @@ int getImageList(launchdat_t *launchdat, imagefile_t *imagefile){
 	imagefile->first = -1;
 	imagefile->last = -1;
 	imagefile->has_video = 0;
+	imagefile->has_audio = 0;
 
 	memset(imagefile->video_filename, '\0', MAX_FILENAME_SIZE);
 	if (launchdat->video != NULL && strlen(launchdat->video) > 0) {
 		strncpy(imagefile->video_filename, launchdat->video, MAX_FILENAME_SIZE);
 			imagefile->has_video = 1;
 	}	
+
+	
+	memset(imagefile->audio_filename, '\0', MAX_FILENAME_SIZE);
+	if (strlen(launchdat->audio) > 0) {
+		strncpy(imagefile->audio_filename, launchdat->audio, MAX_FILENAME_SIZE);
+		imagefile->has_audio = 1;
+	}
 
 	if (launchdat->images != NULL){
 		strncpy(buffer, launchdat->images, IMAGE_BUFFER_SIZE);

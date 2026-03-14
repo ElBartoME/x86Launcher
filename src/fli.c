@@ -22,6 +22,7 @@
 
 
 #include "fli.h"
+#include "sb.h"
 
 #ifndef __HAS_GFX
 #include "gfx.h"
@@ -565,18 +566,32 @@ int fli_PlayPreview(const char *path, int dst_x, int dst_y, int dst_w,
 
     fli_blit(&state, dst_x, dst_y, dst_w, dst_h);
     gfx_Flip();
+    sb_Tick();
 
     if (kbhit()) {
-      int key = getch();
-      // Extended keys (arrows) come as two bytes: 0x00 then the scan code
-      if (key == 0x00 || key == 0xE0) {
-        int ext = getch();
-        // Push both bytes back so the main loop can read them normally
-        ungetch(ext);
-        ungetch(key);
-        done = 1;
-      }
-      // Any other key also stops playback but is consumed
+        int key = getch();
+        if (key == 0x00 || key == 0xE0) {
+            int ext = getch();
+            if (ext == 0x48 || ext == 0x50 || ext == 0x4B || ext == 0x4D) {
+                ungetch(ext);
+                ungetch(key);
+            }
+            done = 1;
+        } else {
+            /* Forward H, Q, F and other non-arrow keys back to main loop */
+            switch (key) {
+                case 'h': case 'H':
+                case 'q': case 'Q':
+                case 'f': case 'F':
+                case 27:   /* Escape */
+                case 13:   /* Enter */
+                    ungetch(key);
+                    break;
+                default:
+                    break;
+            }
+            done = 1;
+        }
     }
 
     // Spin-wait using hardware timer - CPU speed independent
@@ -586,7 +601,7 @@ int fli_PlayPreview(const char *path, int dst_x, int dst_y, int dst_w,
   }
 
   fli_Close(&state);
-  pal_ResetFree();
+  //pal_ResetFree();
 
   return FLI_OK;
 }
