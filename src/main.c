@@ -1224,6 +1224,10 @@ int main() {
 						}
 						ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
 						gfx_Flip();
+					} else if (imagefile->has_video) {
+						// No BMPs, only a video - replay it
+						ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+						gfx_Flip();
 					}
 					end_time = clock();
 					timers_Print(start_time, end_time, "Artwork scroll Left", config->timers);
@@ -1231,12 +1235,16 @@ int main() {
 				case (input_right):
 					// Scroll right through artwork - if available
 					start_time = clock();
-					if (imagefile->last != NULL) {
+					if (imagefile->last > -1) {
 						if (imagefile->selected < imagefile->last) {
 							imagefile->selected += 1;
 						} else {
 							imagefile->selected = imagefile->first;
 						}
+						ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+						gfx_Flip();
+					} else if (imagefile->has_video) {
+						// No BMPs, only a video - replay it
 						ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
 						gfx_Flip();
 					}
