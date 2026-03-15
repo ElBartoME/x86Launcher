@@ -1,5 +1,5 @@
 """
-fade_wav.py - Add fade in and fade out to an 8-bit PCM WAV file.
+fade_wav.py - Add fade in and fade out to an 8-bit or 16-bit PCM WAV file.
 
 Usage:
     python fade_wav.py <input.wav> <output.wav> [fade_in_ms] [fade_out_ms]
@@ -11,9 +11,9 @@ Defaults:
     fade_in_ms  = 500  ms
     fade_out_ms = 1500 ms
 
-Requirements:
-    No dependencies beyond Python stdlib.
-    Input must be 8-bit PCM WAV (mono or stereo).
+Supports:
+    - 8-bit unsigned PCM  (silence = 128)
+    - 16-bit signed PCM   (silence = 0), mono or stereo
 """
 
 import sys
@@ -33,8 +33,8 @@ def write32(val):
     return struct.pack('<I', val)
 
 def find_chunk(data, tag):
-    """Search for a RIFF chunk by 4-byte tag. Returns (offset_of_data, size)."""
-    i = 12  # skip RIFF header
+    """Search for a RIFF chunk by 4-byte tag. Returns (data_offset, size)."""
+    i = 12
     while i + 8 <= len(data):
         chunk_tag  = data[i:i+4]
         chunk_size = read32(data, i + 4)
@@ -42,58 +42,54 @@ def find_chunk(data, tag):
             return i + 8, chunk_size
         i += 8 + chunk_size
         if chunk_size % 2 != 0:
-            i += 1  # RIFF chunks are word-aligned
+            i += 1
     return None, None
 
 def fade_wav(input_path, output_path, fade_in_ms=500, fade_out_ms=1500):
     with open(input_path, 'rb') as f:
         raw = bytearray(f.read())
 
-    print(f"Input file size: {len(raw)} bytes")
+    print(f"Input: {input_path} ({len(raw)} bytes)")
 
-    # Validate RIFF/WAVE header
-    if raw[0:4] != b'RIFF':
-        print("ERROR: Not a RIFF file")
-        sys.exit(1)
-    if raw[8:12] != b'WAVE':
-        print("ERROR: Not a WAVE file")
+    if raw[0:4] != b'RIFF' or raw[8:12] != b'WAVE':
+        print("ERROR: Not a RIFF/WAVE file")
         sys.exit(1)
 
-    # Find fmt chunk
     fmt_offset, fmt_size = find_chunk(raw, b'fmt ')
     if fmt_offset is None:
         print("ERROR: No fmt chunk found")
         sys.exit(1)
-
-    print(f"fmt chunk at offset {fmt_offset}, size {fmt_size}")
 
     fmt_tag     = read16(raw, fmt_offset)
     channels    = read16(raw, fmt_offset + 2)
     sample_rate = read32(raw, fmt_offset + 4)
     bits        = read16(raw, fmt_offset + 14)
 
-    print(f"fmt_tag={fmt_tag}, channels={channels}, sample_rate={sample_rate}, bits={bits}")
+    print(f"Format      : {'PCM' if fmt_tag == 1 else fmt_tag}")
+    print(f"Channels    : {channels}")
+    print(f"Sample rate : {sample_rate} Hz")
+    print(f"Bit depth   : {bits}-bit")
 
     if fmt_tag != 1:
-        print(f"ERROR: Not PCM (fmt_tag={fmt_tag}, must be 1)")
-        sys.exit(1)
-    if bits != 8:
-        print(f"ERROR: Only 8-bit PCM supported (got {bits}-bit)")
+        print(f"ERROR: Not PCM (fmt_tag={fmt_tag})")
         sys.exit(1)
 
-    # Find data chunk
+    if bits not in (8, 16):
+        print(f"ERROR: Only 8-bit and 16-bit PCM supported (got {bits}-bit)")
+        sys.exit(1)
+
     data_offset, data_size = find_chunk(raw, b'data')
     if data_offset is None:
         print("ERROR: No data chunk found")
         sys.exit(1)
 
-    print(f"data chunk at offset {data_offset}, size {data_size}")
+    print(f"PCM data    : {data_size} bytes at offset {data_offset}")
 
-    pcm = raw[data_offset:data_offset + data_size]
-    print(f"PCM data length: {len(pcm)} bytes")
+    bytes_per_sample = bits // 8
+    bytes_per_frame  = channels * bytes_per_sample
+    total_frames     = data_size // bytes_per_frame
 
-    sample_size   = channels
-    total_frames  = data_size // sample_size
+    print(f"Total frames: {total_frames} ({total_frames / sample_rate:.2f}s)")
 
     fade_in_frames  = int(sample_rate * fade_in_ms  / 1000)
     fade_out_frames = int(sample_rate * fade_out_ms / 1000)
@@ -102,48 +98,69 @@ def fade_wav(input_path, output_path, fade_in_ms=500, fade_out_ms=1500):
         half = total_frames // 2
         fade_in_frames  = half
         fade_out_frames = half
-        print(f"WARNING: Fades overlap, clamped to {half} frames each")
+        print(f"WARNING: Fades overlap - clamped to {half} frames each")
 
-    print(f"Total frames : {total_frames} ({total_frames / sample_rate:.2f}s)")
-    print(f"Fade in      : {fade_in_frames} frames ({fade_in_ms}ms)")
-    print(f"Fade out     : {fade_out_frames} frames ({fade_out_ms}ms)")
+    print(f"Fade in     : {fade_in_frames} frames ({fade_in_ms}ms)")
+    print(f"Fade out    : {fade_out_frames} frames ({fade_out_ms}ms)")
 
+    pcm    = bytearray(raw[data_offset:data_offset + data_size])
     result = bytearray(pcm)
 
-    # Fade in - 8-bit PCM is unsigned, silence = 128
-    for i in range(fade_in_frames):
-        scale = i / fade_in_frames
-        for ch in range(channels):
-            idx = i * sample_size + ch
-            sample = pcm[idx] - 128
-            sample = int(sample * scale)
-            sample = max(-128, min(127, sample))
-            result[idx] = sample + 128
+    if bits == 8:
+        # 8-bit unsigned PCM: silence = 128, range 0-255
+        for i in range(fade_in_frames):
+            scale = i / fade_in_frames
+            for ch in range(channels):
+                idx    = i * bytes_per_frame + ch
+                sample = pcm[idx] - 128
+                sample = int(sample * scale)
+                sample = max(-128, min(127, sample))
+                result[idx] = sample + 128
 
-    # Fade out
-    fade_out_start = total_frames - fade_out_frames
-    for i in range(fade_out_frames):
-        scale = 1.0 - (i / fade_out_frames)
-        for ch in range(channels):
-            idx = (fade_out_start + i) * sample_size + ch
-            sample = pcm[idx] - 128
-            sample = int(sample * scale)
-            sample = max(-128, min(127, sample))
-            result[idx] = sample + 128
+        fade_out_start = total_frames - fade_out_frames
+        for i in range(fade_out_frames):
+            scale = 1.0 - (i / fade_out_frames)
+            for ch in range(channels):
+                idx    = (fade_out_start + i) * bytes_per_frame + ch
+                sample = pcm[idx] - 128
+                sample = int(sample * scale)
+                sample = max(-128, min(127, sample))
+                result[idx] = sample + 128
 
-    # Write canonical 44-byte WAV header + PCM data
+    elif bits == 16:
+        # 16-bit signed PCM: silence = 0, range -32768 to 32767
+        for i in range(fade_in_frames):
+            scale = i / fade_in_frames
+            for ch in range(channels):
+                idx    = i * bytes_per_frame + ch * 2
+                sample = struct.unpack_from('<h', pcm, idx)[0]
+                sample = int(sample * scale)
+                sample = max(-32768, min(32767, sample))
+                struct.pack_into('<h', result, idx, sample)
+
+        fade_out_start = total_frames - fade_out_frames
+        for i in range(fade_out_frames):
+            scale = 1.0 - (i / fade_out_frames)
+            for ch in range(channels):
+                idx    = (fade_out_start + i) * bytes_per_frame + ch * 2
+                sample = struct.unpack_from('<h', pcm, idx)[0]
+                sample = int(sample * scale)
+                sample = max(-32768, min(32767, sample))
+                struct.pack_into('<h', result, idx, sample)
+
+    # Write canonical WAV header + faded PCM
     out = bytearray()
     out += b'RIFF'
     out += write32(36 + data_size)
     out += b'WAVE'
     out += b'fmt '
     out += write32(16)
-    out += write16(1)                           # PCM
+    out += write16(1)                                    # PCM
     out += write16(channels)
     out += write32(sample_rate)
-    out += write32(sample_rate * channels)      # byte rate
-    out += write16(channels)                    # block align
-    out += write16(8)                           # bits per sample
+    out += write32(sample_rate * channels * bytes_per_sample)  # byte rate
+    out += write16(channels * bytes_per_sample)          # block align
+    out += write16(bits)
     out += b'data'
     out += write32(data_size)
     out += result
@@ -152,7 +169,7 @@ def fade_wav(input_path, output_path, fade_in_ms=500, fade_out_ms=1500):
         f.write(out)
 
     size = os.path.getsize(output_path)
-    print(f"Written: {output_path} ({size // 1024} KB)")
+    print(f"Written     : {output_path} ({size // 1024} KB)")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

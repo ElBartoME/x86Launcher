@@ -75,7 +75,7 @@ static int fli_apply_palette_256(fli_state_t *state,
       if (fread(rgb, 1, 3, state->f) != 3)
         return FLI_ERR_READ;
       // Only write into the free palette region
-      if (entry < FLI_MAX_COLOURS) {
+      if (entry > 0 && entry < FLI_MAX_COLOURS) {
         pal_Set((unsigned char)entry, rgb[0], rgb[1], rgb[2]);
       }
     }
@@ -111,7 +111,7 @@ static int fli_apply_palette_64(fli_state_t *state,
       if (fread(rgb, 1, 3, state->f) != 3)
         return FLI_ERR_READ;
       // Scale 6-bit (0-63) to 8-bit (0-255)
-      if (entry < FLI_MAX_COLOURS) {
+      if (entry > 0 && entry < FLI_MAX_COLOURS) {
         pal_Set((unsigned char)entry, (unsigned char)(rgb[0] << 2),
                 (unsigned char)(rgb[1] << 2), (unsigned char)(rgb[2] << 2));
       }

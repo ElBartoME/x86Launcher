@@ -13,8 +13,11 @@ Requirements:
 Notes:
     - Frames must be named frame0001.png, frame0002.png etc (ffmpeg default)
     - Output is a FLI file (0xAF11 magic), 320x200, max 208 colours
-    - Palette entries 0-207 are used; entries 208-255 are left black so
-      the launcher UI palette is never disturbed at runtime
+    - Palette entry 0 is never written by the FLI player (reserved for UI).
+      All pixels that the quantizer assigns to entry 0 are remapped to
+      entry 1 instead. Entry 1 is forced to the same colour as entry 0
+      in the palette so the remap is visually transparent.
+    - Entries 208-255 are left black so the UI palette is never disturbed.
 """
 
 import sys
@@ -23,14 +26,13 @@ import glob
 import struct
 from PIL import Image
 
-# Palette entries the video may use - must not exceed launcher UI reserved range
-FLI_MAX_COLOURS = 208
+FLI_MAX_COLOURS = 208   # entries 0-207 available for video
 
 # FLI format constants
-FLI_MAGIC          = 0xAF11   # Original FLI format magic
-FLI_FRAME_MAGIC    = 0xF1FA   # Frame header magic
-FLI_CHUNK_COLOR_64 = 11       # 6-bit palette chunk (native to 0xAF11)
-FLI_CHUNK_BYTE_RUN = 15       # Full-frame RLE chunk
+FLI_MAGIC          = 0xAF11
+FLI_FRAME_MAGIC    = 0xF1FA
+FLI_CHUNK_COLOR_64 = 11
+FLI_CHUNK_BYTE_RUN = 15
 
 # -------------------------------------------------------
 # Frame loading and palette building
@@ -47,9 +49,9 @@ def load_frames(folder):
 
 def build_global_palette(paths):
     """
-    Sample frames across the clip, composite them into a grid image,
-    and quantize to FLI_MAX_COLOURS. Returns a Pillow P-mode image
-    whose palette we use for all frames.
+    Sample frames, composite into a grid, quantize to FLI_MAX_COLOURS.
+    Then force entry 1 to the same colour as entry 0 so that remapping
+    all entry-0 pixels to entry-1 is visually transparent.
     """
     print("Building global palette from all frames...")
     step = max(1, len(paths) // 64)
@@ -68,7 +70,18 @@ def build_global_palette(paths):
         grid.paste(frame, (gx, gy))
 
     palette_img = grid.quantize(colors=FLI_MAX_COLOURS, dither=0)
+
+    # Force entry 1 to the same colour as entry 0.
+    # This means any pixel remapped from 0->1 looks identical.
+    pal = palette_img.getpalette()
+    pal[3] = pal[0]   # entry 1 R = entry 0 R
+    pal[4] = pal[1]   # entry 1 G = entry 0 G
+    pal[5] = pal[2]   # entry 1 B = entry 0 B
+    palette_img.putpalette(pal)
+
     print(f"Palette built from {len(sample_frames)} sample frames")
+    print(f"Entry 0 colour: RGB({pal[0]}, {pal[1]}, {pal[2]}) "
+          f"-> also assigned to entry 1")
     return palette_img
 
 # -------------------------------------------------------
@@ -79,23 +92,26 @@ def encode_palette_chunk(palette_img):
     """
     Build a COLOR_64 chunk (type 11).
     FLI 0xAF11 uses 6-bit (0-63) RGB values.
-    One packet covers all 256 entries: entries 0..207 from the
-    quantized palette scaled to 6-bit, entries 208..255 forced black.
+    Writes all 256 entries:
+      - Entry 0: written normally (but the FLI player skips applying it,
+                 so the UI colour is preserved at runtime)
+      - Entries 1-207: from the quantized palette
+      - Entries 208-255: forced black (UI reserved range)
     """
-    raw = palette_img.getpalette()  # flat [R,G,B, R,G,B, ...] for 256 entries
+    raw = palette_img.getpalette()
 
     data = bytearray()
     data += struct.pack("<H", 1)   # num_packets = 1
-    data += struct.pack("<B", 0)   # skip_count  = 0 (start at entry 0)
+    data += struct.pack("<B", 0)   # skip_count  = 0
     data += struct.pack("<B", 0)   # change_count = 0 means all 256
 
     for i in range(256):
         if i < FLI_MAX_COLOURS and raw is not None:
-            r = raw[i * 3]     >> 2   # scale 8-bit down to 6-bit
+            r = raw[i * 3]     >> 2
             g = raw[i * 3 + 1] >> 2
             b = raw[i * 3 + 2] >> 2
         else:
-            r = g = b = 0             # UI-reserved entries forced to black
+            r = g = b = 0
         data += struct.pack("<BBB", r, g, b)
 
     chunk_size = 6 + len(data)
@@ -105,8 +121,6 @@ def encode_byte_run_chunk(pixels, width, height):
     """
     Encode a full frame as BYTE_RUN (type 15).
     Each row is RLE-encoded independently.
-    Positive count = repeat next byte that many times.
-    Negative count = copy next abs(count) bytes literally.
     """
     data = bytearray()
 
@@ -124,14 +138,11 @@ def encode_byte_run_chunk(pixels, width, height):
                 run_len += 1
 
             if run_len > 2:
-                # Worthwhile repeat run
                 row_data += struct.pack("<bB", run_len, run_val)
                 col += run_len
             else:
-                # Literal run - gather non-repeating bytes
                 lit_len = 0
                 while col + lit_len < width and lit_len < 127:
-                    # Stop if we see 3+ identical bytes coming up
                     if (col + lit_len + 2 < width and
                             row_pixels[col + lit_len]     == row_pixels[col + lit_len + 1] and
                             row_pixels[col + lit_len + 1] == row_pixels[col + lit_len + 2]):
@@ -143,29 +154,22 @@ def encode_byte_run_chunk(pixels, width, height):
                 row_data += bytes(row_pixels[col:col + lit_len])
                 col += lit_len
 
-        # Packet count prefix byte required by spec (decoders use width to
-        # terminate, but the byte must be present)
         data += struct.pack("<B", 0) + bytes(row_data)
 
     chunk_size = 6 + len(data)
     return struct.pack("<IH", chunk_size, FLI_CHUNK_BYTE_RUN) + bytes(data)
 
 def encode_frame(pixels, width, height, palette_chunk=None):
-    """
-    Wrap chunks in a FLI frame header.
-    palette_chunk: pre-built bytes for the COLOR_64 chunk, or None.
-    """
     chunks     = b""
     num_chunks = 0
 
     if palette_chunk is not None:
-        chunks    += palette_chunk
+        chunks     += palette_chunk
         num_chunks += 1
 
     chunks     += encode_byte_run_chunk(pixels, width, height)
     num_chunks += 1
 
-    # Frame header: size(4) + magic(2) + num_chunks(2) + reserved(8) = 16 bytes
     frame_size = 16 + len(chunks)
     header = struct.pack("<IHH8s",
         frame_size,
@@ -186,44 +190,57 @@ def make_fli(paths, output_path, fps=15, palette_img=None):
     width  = 320
     height = 200
 
-    # FLI speed field = jiffies per frame (1 jiffy = 1/70 second)
     speed = max(1, round(70 / fps))
 
     print(f"Quantizing {len(paths)} frames...")
     quantized = []
+    remap_count = 0
+
     for i, p in enumerate(paths):
         img = Image.open(p).convert("RGB")
         if img.size != (width, height):
             img = img.resize((width, height), Image.LANCZOS)
+
         q = img.quantize(colors=FLI_MAX_COLOURS, palette=palette_img, dither=1)
-        quantized.append(bytes(q.tobytes()))
+
+        # Remap any pixel assigned to entry 0 -> entry 1.
+        # Entry 1 has been forced to the same colour as entry 0 in the
+        # palette, so this is visually transparent.
+        pixels = bytearray(q.tobytes())
+        for j in range(len(pixels)):
+            if pixels[j] == 0:
+                pixels[j] = 1
+                remap_count += 1
+
+        quantized.append(bytes(pixels))
+
         if (i + 1) % 30 == 0:
             print(f"  {i+1}/{len(paths)} frames quantized")
+
+    print(f"  Total entry-0 pixels remapped to entry-1: {remap_count}")
 
     print(f"Writing {output_path}...")
 
     pal_chunk  = encode_palette_chunk(palette_img)
     frame_data = b""
     for i, pixels in enumerate(quantized):
-        # Palette chunk only in the first frame
         frame_data += encode_frame(pixels, width, height,
                                    palette_chunk=pal_chunk if i == 0 else None)
 
-    # Build 128-byte FLI file header
     num_frames = len(quantized)
     file_size  = 128 + len(frame_data)
 
     header = struct.pack("<IHHHHHHH",
-        file_size,    # total file size in bytes
-        FLI_MAGIC,    # 0xAF11
-        num_frames,   # total number of frames
-        width,        # 320
-        height,       # 200
-        8,            # bits per pixel
-        0,            # flags
-        speed,        # jiffies per frame
+        file_size,
+        FLI_MAGIC,
+        num_frames,
+        width,
+        height,
+        8,
+        0,
+        speed,
     )
-    header += b'\x00' * (128 - len(header))   # pad to 128 bytes
+    header += b'\x00' * (128 - len(header))
 
     with open(output_path, "wb") as f:
         f.write(header)
@@ -234,7 +251,6 @@ def make_fli(paths, output_path, fps=15, palette_img=None):
           f"{num_frames} frames at {fps}fps, "
           f"{num_frames / fps:.1f}s)")
 
-    # Verify magic at offset 4
     with open(output_path, "rb") as f:
         f.read(4)
         magic = struct.unpack("<H", f.read(2))[0]
@@ -243,7 +259,7 @@ def make_fli(paths, output_path, fps=15, palette_img=None):
     elif magic == 0xAF12:
         print("Magic: 0xAF12 (FLC) - OK")
     else:
-        print(f"WARNING: Unexpected magic 0x{magic:04X} - file may not play")
+        print(f"WARNING: Unexpected magic 0x{magic:04X}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
