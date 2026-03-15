@@ -375,6 +375,7 @@ void configDefaults(config_t *config){
 	config->dir = NULL;
 	config->keyboard_test = 0;
 	config->hsync_shift = 0;
+	config->audio_volume = 256;
 }
 
 int getLaunchdata(gamedata_t *gamedata, launchdat_t *launchdat){
@@ -426,6 +427,10 @@ static int configHandler(void* user, const char* section, const char* name, cons
 		config->timers =  atoi(value);
 	} else if (MATCH("display", "hsync_shift")){
     config->hsync_shift = atoi(value);
+	} else if (MATCH("sound", "volume")){
+    config->audio_volume = atoi(value);
+    if (config->audio_volume < 0)   config->audio_volume = 0;
+    if (config->audio_volume > 256) config->audio_volume = 256;
 	} else {
 		return 0;  /* unknown section/name, error */
 	}

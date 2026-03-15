@@ -71,6 +71,8 @@ static int            wav_loaded      = 0;
 
 static int            current_half;    /* which half is currently playing */
 
+static int            sb_volume       = 256;
+
 /* -------------------------------------------------------
    Helpers
    ------------------------------------------------------- */
@@ -137,22 +139,33 @@ static void fill_half(int half) {
     unsigned char *dst       = dma_buf + (half * HALF_SIZE);
     unsigned long  remaining = HALF_SIZE;
     unsigned long  to_read;
-    size_t         got;
+    unsigned long  got;
 
     while (remaining > 0) {
         to_read = wav_len - wav_pos;
-        if (to_read == 0) {
-            /* loop: rewind to start of PCM data */
-            fseek(wav_file, (long)wav_data_offset, SEEK_SET);
-            wav_pos = 0;
-            continue;
-        }
         if (to_read > remaining) to_read = remaining;
-        got = fread(dst, 1, (size_t)to_read, wav_file);
-        if (got == 0) break;
+
+        if (sb_volume == 256) {
+            got = (unsigned long)fread(dst, 1, to_read, wav_file);
+        } else {
+            unsigned char tmp[HALF_SIZE];
+            got = (unsigned long)fread(tmp, 1, to_read, wav_file);
+            unsigned long i;
+            for (i = 0; i < got; i++) {
+                int s = (int)tmp[i] - 128;
+                s = (s * sb_volume) >> 8;
+                dst[i] = (unsigned char)(s + 128);
+            }
+        }
+
         dst       += got;
-        wav_pos   += (unsigned long)got;
-        remaining -= (unsigned long)got;
+        wav_pos   += got;
+        remaining -= got;
+
+        if (wav_pos >= wav_len) {
+            wav_pos = 0;
+            fseek(wav_file, (long)wav_data_offset, SEEK_SET);
+        }
     }
 }
 
@@ -518,4 +531,10 @@ void sb_Shutdown(void) {
 
 int sb_IsPlaying(void) {
     return playing;
+}
+
+void sb_SetVolume(int vol) {
+    if (vol < 0)   vol = 0;
+    if (vol > 256) vol = 256;
+    sb_volume = vol;
 }

@@ -21,5 +21,6 @@ void sb_Stop(void);
 void sb_Tick(void);
 void sb_Shutdown(void);
 int  sb_IsPlaying(void);
+void sb_SetVolume(int vol);
 
 #endif

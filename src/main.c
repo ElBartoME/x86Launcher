@@ -200,6 +200,7 @@ int main() {
 		printf("keyboard_test=%d\n", config->keyboard_test);
 		printf("preload_names=%d\n", config->preload_names);
 		printf("timers=%d\n", config->timers);
+		printf("audio_volume=%d\n", config->audio_volume);
 		printf("\n");
 		if (config->verbose == 0) {
 			printf("Verbose mode is disabled, you will not receive any further logging after this point\n");
@@ -208,6 +209,7 @@ int main() {
 			//gfx_TextOff();
 		}
 	}
+	sb_SetVolume(config->audio_volume);
 
 	// =======================================
 	// Run the keyboard input test, if enabled

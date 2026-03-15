@@ -119,6 +119,7 @@ typedef struct config {
 	short preload_names;				// Flag to indicate wheter a launch.dat is loaded at scrape-time to pick up real names
 	short keyboard_test;
 	short hsync_shift;
+	short audio_volume;   /* SB audio volume 0-256, default 256 */
 	char dirs[MAX_SEARCHDIRS_SIZE];	// String containing all game dirs to search - it will then be parsed into a list below:
 	struct gamedir *dir;				// List of all the game search dirs
 } config_t;
