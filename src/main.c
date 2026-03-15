@@ -62,8 +62,8 @@ int main() {
 
 	//gdb_start();
 
-	setvbuf(stdout, NULL, _IONBF, 0);
-    freopen("debug.txt", "w", stdout);
+	//setvbuf(stdout, NULL, _IONBF, 0);
+    //freopen("debug.txt", "w", stdout);
 
 	/* Lets get this show on the road!!! */
 

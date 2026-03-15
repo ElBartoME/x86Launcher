@@ -3,6 +3,9 @@
 #ifndef __HAS_SB
 #define __HAS_SB
 
+/* Set to 1 to enable verbose Sound Blaster debug logging */
+#define SB_VERBOSE 0
+
 #define SB_OK            0
 #define SB_ERR_NOBLASTER -1
 #define SB_ERR_NORESET   -2
