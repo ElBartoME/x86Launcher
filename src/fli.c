@@ -572,7 +572,8 @@ int fli_PlayPreview(const char *path, int dst_x, int dst_y, int dst_w,
         int key = getch();
         if (key == 0x00 || key == 0xE0) {
             int ext = getch();
-            if (ext == 0x48 || ext == 0x50 || ext == 0x4B || ext == 0x4D) {
+            if (ext == 0x48 || ext == 0x50 || ext == 0x4B || ext == 0x4D ||
+                ext == 0x49 || ext == 0x51) {
                 ungetch(ext);
                 ungetch(key);
             }

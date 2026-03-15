@@ -28,6 +28,7 @@ import tempfile
 import shutil
 import glob
 
+
 def run(cmd, desc):
     print(f"\n[{desc}]")
     print("  " + " ".join(cmd))
@@ -37,6 +38,55 @@ def run(cmd, desc):
         print(result.stderr)
         sys.exit(1)
     return result
+
+
+def detect_crop(video_path):
+    """
+    Use ffmpeg cropdetect to find black border crop parameters.
+    Samples 10 seconds starting 5 seconds in to avoid fades/logos.
+    Returns a crop string like "1280:720:0:0", or None if no crop needed.
+    """
+    print("\n=== Step 1b: Detecting black borders ===")
+    result = subprocess.run([
+        "ffmpeg", "-y",
+        "-ss", "5",
+        "-t", "10",
+        "-i", video_path,
+        "-vf", "cropdetect=limit=16:round=2:reset=0",
+        "-f", "null", "-"
+    ], capture_output=True, text=True)
+
+    crop = None
+    for line in result.stderr.splitlines():
+        if "crop=" in line:
+            crop = line.split("crop=")[-1].strip()
+
+    if crop:
+        # Sanity-check: if the crop matches the full frame, skip it
+        # e.g. "1920:1080:0:0" on a 1920x1080 video means no borders
+        parts = crop.split(":")
+        if len(parts) == 4 and parts[2] == "0" and parts[3] == "0":
+            # Check if w/h match source resolution by probing
+            probe = subprocess.run([
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "csv=p=0",
+                video_path
+            ], capture_output=True, text=True)
+            probe_out = probe.stdout.strip()
+            if probe_out:
+                src_w, src_h = probe_out.split(",")
+                if parts[0] == src_w and parts[1] == src_h:
+                    print("  No black borders detected.")
+                    return None
+
+        print(f"  Crop region: {crop}")
+    else:
+        print("  No black borders detected.")
+
+    return crop
+
 
 def make_preview(input_video, output_fli, start_time, duration, fps=15):
 
@@ -52,10 +102,10 @@ def make_preview(input_video, output_fli, start_time, duration, fps=15):
         sys.exit(1)
 
     # Work in a temp directory so frames don't clutter the working dir
-    tmpdir    = tempfile.mkdtemp(prefix="fli_")
-    frames    = os.path.join(tmpdir, "frames")
-    palette   = os.path.join(tmpdir, "palette.png")
-    trimmed   = os.path.join(tmpdir, "trimmed.mp4")
+    tmpdir  = tempfile.mkdtemp(prefix="fli_")
+    frames  = os.path.join(tmpdir, "frames")
+    palette = os.path.join(tmpdir, "palette.png")
+    trimmed = os.path.join(tmpdir, "trimmed.mp4")
 
     os.makedirs(frames)
 
@@ -70,24 +120,41 @@ def make_preview(input_video, output_fli, start_time, duration, fps=15):
             trimmed
         ], "Trim clip")
 
-        # Step 2: Generate a 208-colour palette from the trimmed clip
+        # Step 1b: Auto-detect and remove black borders
+        crop      = detect_crop(trimmed)
+        crop_filter = f"crop={crop}," if crop else ""
+
+        # Step 2: Generate a 208-colour palette from the trimmed clip.
+        # stats_mode=diff prioritises colours that change between frames,
+        # which gives a more stable palette and reduces inter-frame noise.
         print("\n=== Step 2/4: Building 208-colour palette ===")
         run([
             "ffmpeg", "-y",
             "-i", trimmed,
-            "-vf", f"fps={fps},scale=320:200:flags=lanczos,"
-                   "palettegen=max_colors=208:reserve_transparent=0:stats_mode=full",
+            "-vf", (
+                f"fps={fps},"
+                f"{crop_filter}"
+                f"scale=320:200:flags=lanczos,"
+                f"palettegen=max_colors=208:reserve_transparent=0:stats_mode=diff"
+            ),
             palette
         ], "Generate palette")
 
-        # Step 3: Extract quantized PNG frames
+        # Step 3: Extract quantized PNG frames.
+        # dither=none avoids inter-frame dancing noise; works well for pixel
+        # art sources where the original palette is already carefully chosen.
         print("\n=== Step 3/4: Extracting frames ===")
         run([
             "ffmpeg", "-y",
             "-i", trimmed,
             "-i", palette,
             "-filter_complex",
-            f"fps={fps},scale=320:200:flags=lanczos[v];[v][1:v]paletteuse=dither=bayer:bayer_scale=2",
+            (
+                f"fps={fps},"
+                f"{crop_filter}"
+                f"scale=320:200:flags=lanczos"
+                f"[v];[v][1:v]paletteuse=dither=none"
+            ),
             os.path.join(frames, "frame%04d.png").replace("\\", "/")
         ], "Extract frames")
 
@@ -116,6 +183,7 @@ def make_preview(input_video, output_fli, start_time, duration, fps=15):
 
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:

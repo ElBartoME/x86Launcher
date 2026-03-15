@@ -99,6 +99,11 @@ def encode_palette_chunk(palette_img):
       - Entries 208-255: forced black (UI reserved range)
     """
     raw = palette_img.getpalette()
+    
+    # Pad to 256 entries (768 values) in case Pillow returns fewer
+    if raw is not None:
+        raw = list(raw) + [0] * (768 - len(raw))
+    
 
     data = bytearray()
     data += struct.pack("<H", 1)   # num_packets = 1
