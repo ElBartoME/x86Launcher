@@ -1408,10 +1408,10 @@ int ui_UpdateInfoPane(state_t *state, gamedata_t *gamedata, launchdat_t *launchd
 	char		status_msg[64];		// Message buffer for anything needing to be printed onscreen
 	char		info_name[64];
 	char		info_year[8];
-	char		info_company[32];
+	char		info_company[64];
 	char		info_path[64];
-	char		info_genre[24];
-	char		info_series[24];
+	char		info_genre[64];
+	char		info_series[64];
 	
 	//gamedata_t	*gamedata_head;	// Pointer to the start of the gamedata list, so we can restore it
 	//gamedata_t	*selected_game;	// Gamedata object for the currently selected line
