@@ -270,6 +270,138 @@ int findDirs(char *path, gamedata_t *gamedata, int startnum, config_t *config, l
 	return found;
 }
 
+static void findExeFilesRecurse(char *base_path, char *rel_prefix, exefile_t *exefile, int *count){
+	/* Internal recursive helper for findExeFiles.
+	   base_path  : the absolute path to scan (e.g. "C:\Games\Quake\INSTALL")
+	   rel_prefix : relative prefix to prepend to filenames (e.g. "INSTALL\")
+	               empty string "" for the top-level directory.
+	   count      : pointer to running total, shared across all recursion levels. */
+	
+	DIR *dir;
+	struct dirent *de;
+	char *ext;
+	char abs_subdir[MAX_PATH_SIZE];
+	char rel_subpath[MAX_EXE_RELPATH_SIZE];
+	char rel_entry[MAX_EXE_RELPATH_SIZE];
+	
+	dir = opendir(base_path);
+	if (dir == NULL){
+		if (FS_VERBOSE){
+			printf("%s.%d\t findExeFilesRecurse() Cannot open: %s\n", __FILE__, __LINE__, base_path);
+		}
+		return;
+	}
+	
+	while ((de = readdir(dir)) != NULL){
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0){
+			continue;
+		}
+		if (*count >= MAX_EXE_FILES){
+			break;
+		}
+		
+		/* Build the absolute path for this entry to test if it's a directory */
+		memset(abs_subdir, '\0', sizeof(abs_subdir));
+		if ((strlen(base_path) + 1 + strlen(de->d_name) + 1) < MAX_PATH_SIZE){
+			strcpy(abs_subdir, base_path);
+			strcat(abs_subdir, "\\");
+			strcat(abs_subdir, de->d_name);
+		} else {
+			continue; /* Path too long, skip */
+		}
+		
+		/* Build the relative path for display/run.bat (rel_prefix + name) */
+		memset(rel_entry, '\0', sizeof(rel_entry));
+		if ((strlen(rel_prefix) + strlen(de->d_name) + 1) < MAX_EXE_RELPATH_SIZE){
+			strcpy(rel_entry, rel_prefix);
+			strcat(rel_entry, de->d_name);
+		} else {
+			continue; /* Path too long, skip */
+		}
+		
+		if (isDir(abs_subdir)){
+			/* Recurse into subdirectory - build new relative prefix */
+			memset(rel_subpath, '\0', sizeof(rel_subpath));
+			if ((strlen(rel_entry) + 2) < MAX_EXE_RELPATH_SIZE){
+				strcpy(rel_subpath, rel_entry);
+				strcat(rel_subpath, "\\");
+				findExeFilesRecurse(abs_subdir, rel_subpath, exefile, count);
+			}
+		} else {
+			/* Check file extension */
+			ext = strrchr(de->d_name, '.');
+			if (ext == NULL){
+				continue;
+			}
+			if (strcmp(ext, ".EXE") == 0 || strcmp(ext, ".exe") == 0 ||
+			    strcmp(ext, ".BAT") == 0 || strcmp(ext, ".bat") == 0 ||
+			    strcmp(ext, ".COM") == 0 || strcmp(ext, ".com") == 0){
+				strncpy(exefile->filename[*count], rel_entry, MAX_EXE_RELPATH_SIZE - 1);
+				(*count)++;
+			}
+		}
+	}
+	
+	closedir(dir);
+}
+
+int findExeFiles(char *path, exefile_t *exefile){
+	/* Scan a game directory (and all subdirectories) for .EXE, .BAT and .COM files.
+	   Results are stored as relative paths from the game root, e.g. "SUBDIR\GAME.EXE".
+	   Returns the number of files found, or -1 on error. */
+	
+	int count;
+	
+	count = 0;
+	memset(exefile->filename, '\0', sizeof(exefile->filename));
+	exefile->count = 0;
+	
+	if (path == NULL || strlen(path) == 0){
+		return -1;
+	}
+	
+	findExeFilesRecurse(path, "", exefile, &count);
+	
+	exefile->count = count;
+	
+	if (FS_VERBOSE){
+		printf("%s.%d\t findExeFiles() Found %d launchable files under %s\n", __FILE__, __LINE__, count, path);
+	}
+	return count;
+}
+
+int writeRunBatDirect(state_t *state, char *filename){
+	/* Write a RUN.BAT to launch a specific file directly, without a launchdat.
+	   Used when the user selects a file from the exe picker popup. */
+	
+	FILE *runbat;
+	
+	runbat = fopen(RUNBAT, "w");
+	if (runbat == NULL){
+		if (FS_VERBOSE){
+			printf("%s.%d\t writeRunBatDirect() Unable to write %s\n", __FILE__, __LINE__, RUNBAT);
+		}
+		return -1;
+	}
+	
+	if (FS_VERBOSE){
+		fprintf(runbat, "REM Direct launch (no launch.dat)\n");
+		fprintf(runbat, "REM Path: %s\n", state->selected_game->path);
+		fprintf(runbat, "REM File: %s\n", filename);
+		fputs("\n", runbat);
+	}
+	
+	/* Change to game drive */
+	fprintf(runbat, "%c:\n", state->selected_game->drive);
+	/* CD to game directory */
+	fprintf(runbat, "cd %s\n", state->selected_game->path);
+	/* Call the chosen file */
+	fprintf(runbat, "%s\n", filename);
+	
+	fclose(runbat);
+	return 0;
+}
+
 int zeroRunBat(){
     FILE *runbat;
     FILE *quitfile;

@@ -61,4 +61,8 @@ typedef struct state {
 	char filter_strings[MAXIMUM_FILTER_STRINGS][MAX_STRING_SIZE];
 	unsigned char filter_strings_selected[MAXIMUM_FILTER_STRINGS]; // 1 or 0 to indicate if the string at this position is selected
 	
+	// Exe picker state (used when no launch.dat is found)
+	int exe_picker_selected;	// Index of the currently highlighted file in the picker
+	int exe_picker_scroll;		// Index of the first visible file (for scrolling)
+	
 } state_t;

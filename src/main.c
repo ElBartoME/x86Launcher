@@ -96,6 +96,7 @@ int main() {
 	launchdat_t *launchdat = NULL;          // When a single game is selected, we attempt to load its metadata file from disk
 	launchdat_t *filterdat = NULL;          // Used when loading metadata files to filter games
 	imagefile_t *imagefile = NULL;          // When a single game is selected, we attempt to load a list of the screenshots from metadata
+	exefile_t *exefile = NULL;              // List of .EXE/.BAT/.COM files when no launch.dat is present
 	//imagefile_t *imagefile_head = NULL;		// Constant pointer to the start of the game screenshot list
 	gamedir_t *gamedir = NULL;             // List of the game search directories, as defined in our INIFILE
 	config_t *config = NULL;               // Configuration data as defined in our INIFILE
@@ -141,6 +142,9 @@ int main() {
 
 	// List of artwork for a game
 	imagefile = (imagefile_t *) calloc(1,sizeof(imagefile_t));
+
+	// Exe file list (for games without launch.dat)
+	exefile = (exefile_t *) calloc(1, sizeof(exefile_t));
 
 	// Launchdat metadata structure
 	launchdat = (launchdat_t *) calloc(1, sizeof(launchdat_t));
@@ -990,10 +994,6 @@ int main() {
 						int saved_line     = state->selected_line;
 						int saved_pages    = state->total_pages;
 						gamedata_t *saved_game = state->selected_game;
-						unsigned int *saved_list = (unsigned int *) malloc(SELECTION_LIST_SIZE * sizeof(unsigned int));
-						if (saved_list != NULL) {
-							memcpy(saved_list, state->selected_list, SELECTION_LIST_SIZE * sizeof(unsigned int));
-						}
 
 						if (state->selected_filter == FILTER_GENRE) {
 							status = filter_Genre(state, gamedata, filterdat);
@@ -1019,7 +1019,6 @@ int main() {
 							if (config->verbose) {
 								printf("%s.%d\t Redrawing main screen for Game ID: %d, %s\n", __FILE__, __LINE__, state->selected_gameid, state->selected_game->name);
 							}
-							if (saved_list != NULL) { free(saved_list); }
 							ui_UpdateBrowserPane(state, gamedata);
 							gfx_Flip();
 							ui_DrawInfoBox();
@@ -1039,10 +1038,6 @@ int main() {
 							state->selected_line   = saved_line;
 							state->total_pages     = saved_pages;
 							state->selected_game   = saved_game;
-							if (saved_list != NULL) {
-								memcpy(state->selected_list, saved_list, SELECTION_LIST_SIZE * sizeof(unsigned int));
-								free(saved_list);
-							}
 							ui_UpdateBrowserPane(state, gamedata);
 							gfx_Flip();
 							ui_DrawInfoBox();
@@ -1076,6 +1071,65 @@ int main() {
 					gfx_Flip();
 					ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
 					gfx_Flip();
+					break;
+				default:
+					break;
+			}
+		}
+
+		// ==================================================
+		//
+		// Exe picker popup - shown when a game has no
+		// launch.dat and we scan for .EXE/.BAT/.COM files
+		//
+		// ==================================================
+		if (active_pane == EXE_PICKER_PANE) {
+			switch (user_input) {
+				case (input_quit):
+					exit = 1;
+					zeroRunBat();
+					break;
+				case (input_cancel):
+					if (config->verbose) {
+						printf("%s.%d\t Closing exe picker popup\n", __FILE__, __LINE__);
+					}
+					active_pane = BROWSER_PANE;
+					ui_DrawMainWindow();
+					ui_UpdateBrowserPane(state, gamedata);
+					gfx_Flip();
+					ui_DrawInfoBox();
+					ui_ReselectCurrentGame(state);
+					ui_UpdateInfoPane(state, gamedata, launchdat);
+					ui_UpdateBrowserPaneStatus(state);
+					gfx_Flip();
+					ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+					gfx_Flip();
+					break;
+				case (input_up):
+					// Move selection up, scroll window if needed
+					if (state->exe_picker_selected > 0) {
+						state->exe_picker_selected--;
+					}
+					ui_DrawExePickerPopup(state, exefile, 1);
+					gfx_Flip();
+					break;
+				case (input_down):
+					// Move selection down, scroll window if needed
+					if (state->exe_picker_selected < exefile->count - 1) {
+						state->exe_picker_selected++;
+					}
+					ui_DrawExePickerPopup(state, exefile, 1);
+					gfx_Flip();
+					break;
+				case (input_select):
+					// Launch the highlighted file
+					if (config->verbose) {
+						printf("%s.%d\t Exe picker: launching %s from %s\n", __FILE__, __LINE__,
+						       exefile->filename[state->exe_picker_selected],
+						       state->selected_game->path);
+					}
+					writeRunBatDirect(state, exefile->filename[state->exe_picker_selected]);
+					exit = 1;
 					break;
 				default:
 					break;
@@ -1157,6 +1211,21 @@ int main() {
 							if (config->verbose) {
 								printf("%s.%d\t - Action: No start file, no action\n", __FILE__, __LINE__);
 							}
+						}
+					} else {
+						// No launch.dat - scan directory for launchable files and show picker
+						if (config->verbose) {
+							printf("%s.%d\t No launch.dat - scanning for exe/bat/com files in: %s\n", __FILE__, __LINE__, state->selected_game->path);
+						}
+						status = findExeFiles(state->selected_game->path, exefile);
+						if (status > 0) {
+							state->exe_picker_selected = 0;
+							state->exe_picker_scroll   = 0;
+							active_pane = EXE_PICKER_PANE;
+							ui_DrawExePickerPopup(state, exefile, 0);
+							gfx_Flip();
+						} else {
+							ui_StatusMessage("No launchable files found in game directory");
 						}
 					}
 					break;

@@ -185,7 +185,15 @@
 #define FILTER_PRE_PANE			0x06
 #define FILTER_PANE				0x07
 #define HELP_PANE				0x08
-#define PANE_MAX					0x08
+#define EXE_PICKER_PANE			0x09
+#define PANE_MAX					0x09
+
+// Exe picker popup layout
+#define ui_exe_picker_xpos		100
+#define ui_exe_picker_ypos		100
+#define ui_exe_picker_width		440
+#define ui_exe_picker_height		220
+#define ui_exe_picker_max_visible	10
 
 // Functions
 void	ui_Init();
@@ -198,6 +206,7 @@ int		ui_DrawFilterPrePopup(state_t *state, int select);
 int		ui_DrawFilterPopup(state_t *state, int select, int redraw, int toggle);
 int		ui_DrawHelpPopup();
 int		ui_DrawLaunchPopup(state_t *state, gamedata_t *gamedata, launchdat_t *launchdat, int toggle);
+int		ui_DrawExePickerPopup(state_t *state, exefile_t *exefile, int redraw);
 int		ui_DrawMainWindow();
 int		ui_DrawSplash();
 int		ui_DrawSplashProgress();

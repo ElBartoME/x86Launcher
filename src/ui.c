@@ -624,6 +624,116 @@ int ui_DrawFilterPopup(state_t *state, int select, int redraw, int toggle){
 	
 }
 
+int ui_DrawExePickerPopup(state_t *state, exefile_t *exefile, int redraw){
+	// Draw a popup listing all .EXE/.BAT/.COM files found in a game directory
+	// that has no launch.dat, allowing the user to scroll and pick one to launch.
+	//
+	// redraw == 0 : Full redraw (background, title, all text and cursors)
+	// redraw == 1 : Cursor-only redraw (only update the selection cursor column)
+	
+	int i;
+	int visible;       // Number of entries actually visible on screen
+	int screen_row;    // Row index within the visible window (0..ui_exe_picker_max_visible-1)
+	int entry_idx;     // Index into exefile->filename[]
+	char msg[64];
+	int row_y;
+	int text_x;
+	int cursor_x;
+	int first_row_y;
+	
+	cursor_x   = ui_exe_picker_xpos + 10;
+	text_x     = ui_exe_picker_xpos + 35;
+	first_row_y = ui_exe_picker_ypos + 35;
+	
+	// On a full redraw, paint the popup background and static text
+	if (redraw == 0){
+		// Background fill
+		gfx_BoxFill(ui_exe_picker_xpos, ui_exe_picker_ypos,
+		            ui_exe_picker_xpos + ui_exe_picker_width,
+		            ui_exe_picker_ypos + ui_exe_picker_height,
+		            PALETTE_UI_BLACK);
+		// Outline
+		gfx_Box(ui_exe_picker_xpos, ui_exe_picker_ypos,
+		        ui_exe_picker_xpos + ui_exe_picker_width,
+		        ui_exe_picker_ypos + ui_exe_picker_height,
+		        PALETTE_UI_LGREY);
+		// Title
+		sprintf(msg, "Select file to run (%d found):", exefile->count);
+		gfx_Puts(ui_exe_picker_xpos + 10, ui_exe_picker_ypos + 12, ui_font, msg);
+		// Footer hint
+		gfx_Puts(ui_exe_picker_xpos + 10,
+		         ui_exe_picker_ypos + ui_exe_picker_height - 18,
+		         ui_font, "[Up/Down] Scroll  [Enter] Launch  [Esc] Cancel");
+	}
+	
+	// How many rows are actually visible?
+	visible = exefile->count - state->exe_picker_scroll;
+	if (visible > ui_exe_picker_max_visible){
+		visible = ui_exe_picker_max_visible;
+	}
+	
+	// Clamp selection
+	if (state->exe_picker_selected < state->exe_picker_scroll){
+		state->exe_picker_scroll = state->exe_picker_selected;
+	}
+	if (state->exe_picker_selected >= state->exe_picker_scroll + ui_exe_picker_max_visible){
+		state->exe_picker_scroll = state->exe_picker_selected - ui_exe_picker_max_visible + 1;
+	}
+	if (state->exe_picker_scroll < 0){
+		state->exe_picker_scroll = 0;
+	}
+	
+	// Recalculate visible count after possible scroll adjustment
+	visible = exefile->count - state->exe_picker_scroll;
+	if (visible > ui_exe_picker_max_visible){
+		visible = ui_exe_picker_max_visible;
+	}
+	
+	// Draw each visible row
+	for (screen_row = 0; screen_row < ui_exe_picker_max_visible; screen_row++){
+		entry_idx = state->exe_picker_scroll + screen_row;
+		row_y = first_row_y + screen_row * (ui_font_height + 2);
+		
+		if (entry_idx < exefile->count){
+			// Draw cursor icon
+			if (entry_idx == state->exe_picker_selected){
+				gfx_Bitmap(cursor_x, row_y, ui_checkbox_bmp);
+			} else {
+				gfx_Bitmap(cursor_x, row_y, ui_checkbox_empty_bmp);
+			}
+			// Draw filename text (full redraw only; cursor-only skip text)
+			if (redraw == 0){
+				gfx_Puts(text_x, row_y, ui_font, exefile->filename[entry_idx]);
+			}
+		} else {
+			// Blank out any leftover text from a previous longer list
+			if (redraw == 0){
+				gfx_BoxFill(cursor_x, row_y,
+				            ui_exe_picker_xpos + ui_exe_picker_width - 10,
+				            row_y + ui_font_height,
+				            PALETTE_UI_BLACK);
+			}
+		}
+	}
+	
+	// Scroll indicators
+	if (redraw == 0){
+		// Up arrow indicator if there are entries above the visible window
+		if (state->exe_picker_scroll > 0){
+			gfx_Puts(ui_exe_picker_xpos + ui_exe_picker_width - 20,
+			         first_row_y, ui_font, "^");
+		}
+		// Down arrow indicator if there are entries below the visible window
+		if ((state->exe_picker_scroll + ui_exe_picker_max_visible) < exefile->count){
+			gfx_Puts(ui_exe_picker_xpos + ui_exe_picker_width - 20,
+			         first_row_y + (ui_exe_picker_max_visible - 1) * (ui_font_height + 2),
+			         ui_font, "v");
+		}
+	}
+	
+	return UI_OK;
+}
+
 int ui_DrawHelpPopup(){
 	// Display the full-screen help text	
 	

@@ -39,5 +39,6 @@ char		drvNumToLetter(int drive_number);
 int 		findDirs(char *path, gamedata_t *gamedata, int startnum, config_t *config, launchdat_t *launchdat);
 int 		isDir(char *path);
 int 		writeRunBat(state_t *state, launchdat_t *launchdat);
+int 		writeRunBatDirect(state_t *state, char *filename);
 int 		zeroRunBat();
-
+int 		findExeFiles(char *path, exefile_t *exefile);

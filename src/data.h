@@ -105,6 +105,17 @@ typedef struct imagefile {
 	char audio_filename[MAX_FILENAME_SIZE];
 } imagefile_t;
 
+// Maximum number of exe/bat/com files we will list for a game without a launch.dat
+#define MAX_EXE_FILES			32
+#define EXE_PICKER_MAX_VISIBLE	10		// How many entries fit on screen at once in the picker popup
+#define MAX_EXE_RELPATH_SIZE	64		// Max length of a relative path like "SUBDIR\GAME.EXE"
+
+// A list of launchable files found in a game directory that has no launch.dat
+typedef struct exefile {
+	char filename[MAX_EXE_FILES][MAX_EXE_RELPATH_SIZE];	// Relative paths of each found exe/bat/com (e.g. "SUBDIR\GAME.EXE")
+	int  count;											// Total number of files found
+} exefile_t;
+
 // A list of game directories to search and scrape at run time.
 typedef struct gamedir {
 	char path[MAX_PATH_SIZE];			// Path to search for games
