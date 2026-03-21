@@ -455,9 +455,18 @@ int writeRunBat(state_t *state, launchdat_t *launchdat){
 	fprintf(runbat, "cd %s \n", state->selected_game->path);
 	
 	// Call selected start file
-	if (state->selected_start == 0){
+	if (launchdat->start_count > 0){
+		/* Use the new start_entries array - selected_start is an index */
+		int idx = state->selected_start;
+		if (idx < 0 || idx >= launchdat->start_count){
+			idx = 0;
+		}
+		fprintf(runbat, "%s \n", launchdat->start_entries[idx].file);
+	} else if (state->selected_start == 0){
+		/* Legacy fallback */
 		fprintf(runbat, "%s \n", launchdat->start);
 	} else {
+		/* Legacy alt_start fallback */
 		fprintf(runbat, "%s \n", launchdat->alt_start);
 	}
 	

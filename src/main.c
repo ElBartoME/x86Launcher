@@ -705,12 +705,12 @@ int main() {
 					gfx_Flip();
 					break;
 				case (input_up):
-					// FLip between start files
-					ui_DrawLaunchPopup(state, gamedata, launchdat, 1);
+					// Move selection up
+					ui_DrawLaunchPopup(state, gamedata, launchdat, -1);
 					gfx_Flip();
 					break;
 				case (input_down):
-					// FLip between start files
+					// Move selection down
 					ui_DrawLaunchPopup(state, gamedata, launchdat, 1);
 					gfx_Flip();
 					break;
@@ -1173,22 +1173,43 @@ int main() {
 							printf("%s.%d\t Attempting launch...\n", __FILE__, __LINE__);
 						}
 
-						if (
-								((launchdat->start != NULL) && (strlen(launchdat->start) > 0)) &&
-								((launchdat->alt_start != NULL) && (strlen(launchdat->alt_start) > 0))) {
-							// Start and alt_start defined
+						if (launchdat->start_count > 1){
+							// Multiple start entries - show selection popup
 							if (config->verbose) {
-								printf("%s.%d\t - Action: Drawing launcher popup\n", __FILE__, __LINE__);
+								printf("%s.%d\t - Action: Drawing launcher popup (%d entries)\n", __FILE__, __LINE__, launchdat->start_count);
+							}
+							active_pane = LAUNCH_PANE;
+							state->selected_start = 0;
+							state->exe_picker_scroll = 0;
+							ui_DrawLaunchPopup(state, gamedata, launchdat, 0);
+							gfx_Flip();
+
+						} else if (launchdat->start_count == 1){
+							// Single start entry - go straight to confirm
+							if (config->verbose) {
+								printf("%s.%d\t - Action: Drawing confirmation popup\n", __FILE__, __LINE__);
+							}
+							active_pane = CONFIRM_PANE;
+							state->selected_start = 0;
+							ui_DrawConfirmPopup(state, gamedata, launchdat);
+							gfx_Flip();
+
+						} else if ((launchdat->start != NULL) && (strlen(launchdat->start) > 0) &&
+						           (launchdat->alt_start != NULL) && (strlen(launchdat->alt_start) > 0)){
+							// Legacy: both start and alt_start defined
+							if (config->verbose) {
+								printf("%s.%d\t - Action: Drawing launcher popup (legacy)\n", __FILE__, __LINE__);
 							}
 							active_pane = LAUNCH_PANE;
 							state->selected_start = START_MAIN;
+							state->exe_picker_scroll = 0;
 							ui_DrawLaunchPopup(state, gamedata, launchdat, 0);
 							gfx_Flip();
 
 						} else if ((launchdat->start != NULL) && (strcmp(launchdat->start, "") != 0)) {
-							// Start defined only
+							// Legacy: start only
 							if (config->verbose) {
-								printf("%s.%d\t - Action: Drawing confirmation popup\n", __FILE__, __LINE__);
+								printf("%s.%d\t - Action: Drawing confirmation popup (legacy start)\n", __FILE__, __LINE__);
 							}
 							active_pane = CONFIRM_PANE;
 							state->selected_start = START_MAIN;
@@ -1196,7 +1217,7 @@ int main() {
 							gfx_Flip();
 
 						} else if ((launchdat->alt_start != NULL) && (strcmp(launchdat->alt_start, "") != 0)) {
-							// alt start defined only
+							// Legacy: alt_start only
 							if (config->verbose) {
 								printf("%s.%d\t - Action: Closing to start game (alt start)\n", __FILE__, __LINE__);
 							}
@@ -1206,8 +1227,7 @@ int main() {
 							gfx_Flip();
 
 						} else {
-							// Nothing defined
-							// do nothing
+							// Nothing defined - do nothing
 							if (config->verbose) {
 								printf("%s.%d\t - Action: No start file, no action\n", __FILE__, __LINE__);
 							}

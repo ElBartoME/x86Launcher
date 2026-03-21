@@ -74,6 +74,16 @@ typedef struct hwdata {
 	unsigned char dpmi;					// Uses 32bit protected mode
 } hwdata_t;
 
+#define MAX_START_ENTRIES		8					// Max number of start entries in launch.dat
+#define MAX_START_LABEL_SIZE	32					// Max length of a start entry label e.g. "Start Game"
+
+// A single launchable entry parsed from the start= field in launch.dat
+// Format: file.exe[Label]  or just  file.exe
+typedef struct startentry {
+	char file[MAX_FILENAME_SIZE];				// The executable/batch filename
+	char label[MAX_START_LABEL_SIZE];			// Optional display label (empty string if none given)
+} startentry_t;
+
 // A launchdat object is loaded for the parsed launch.dat file included with a game.
 // Only the currently selected game has this object loaded.
 typedef struct launchdat {
@@ -85,8 +95,10 @@ typedef struct launchdat {
 	char series[MAX_STRING_SIZE];		// Series name; e.g. Gradius, Streetfighter, etc.
 	char publisher[MAX_STRING_SIZE];		// The name of the publisher
 	char developer[MAX_STRING_SIZE];		// The name of the developer
-	char start[MAX_FILENAME_SIZE];		// Name of the main start file
-	char alt_start[MAX_FILENAME_SIZE];	// Name of an alternative start file (e.g a config utility)
+	char start[MAX_FILENAME_SIZE];		// Name of the main start file (legacy single-entry, kept for compat)
+	char alt_start[MAX_FILENAME_SIZE];	// Name of an alternative start file (legacy, kept for compat)
+	startentry_t start_entries[MAX_START_ENTRIES]; // Parsed list of all start entries
+	int start_count;					// Number of valid entries in start_entries[]
 	char images[IMAGE_BUFFER_SIZE];		// String containing all the image filenames
 	char video[MAX_FILENAME_SIZE];
 	char audio[MAX_FILENAME_SIZE];

@@ -135,9 +135,9 @@
 
 // launch window popup
 #define ui_launch_popup_xpos		170
-#define ui_launch_popup_ypos		150
+#define ui_launch_popup_ypos		120
 #define ui_launch_popup_width	300
-#define ui_launch_popup_height	100
+#define ui_launch_popup_height	220
 
 // artwork window dimensions
 #define ui_artwork_width			320	// Width of the window that holds artwork

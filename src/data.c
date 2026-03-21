@@ -196,10 +196,114 @@ static int launchdatHandler(void* user, const char* section, const char* name, c
 			launchdat->midi_serial = 1;
 		}
 	} else if (MATCH("default", "start")){
-		strncpy(launchdat->start, value, MAX_FILENAME_SIZE);
+		/* Parse comma-separated list of entries, each optionally with a label:
+		   file.exe[Start Game],setup.exe[Setup],other.bat
+		   Legacy single value also supported. */
+		{
+			char buf[IMAGE_BUFFER_SIZE];
+			char *token;
+			char *bracket;
+			char *endbracket;
+			int idx;
+			
+			/* Copy raw value into start for backwards compatibility */
+			strncpy(launchdat->start, value, MAX_FILENAME_SIZE - 1);
+			launchdat->start[MAX_FILENAME_SIZE - 1] = '\0';
+			
+			strncpy(buf, value, sizeof(buf) - 1);
+			buf[sizeof(buf) - 1] = '\0';
+			
+			idx = 0;
+			token = strtok(buf, ",");
+			while (token != NULL && idx < MAX_START_ENTRIES){
+				/* Skip leading whitespace */
+				while (*token == ' ') token++;
+				
+				/* Look for optional [Label] */
+				bracket = strchr(token, '[');
+				if (bracket != NULL){
+					endbracket = strchr(bracket, ']');
+					/* Extract filename (everything before '[') */
+					*bracket = '\0';
+					strncpy(launchdat->start_entries[idx].file, token, MAX_FILENAME_SIZE - 1);
+					launchdat->start_entries[idx].file[MAX_FILENAME_SIZE - 1] = '\0';
+					/* Extract label (between '[' and ']') */
+					if (endbracket != NULL){
+						*endbracket = '\0';
+					}
+					strncpy(launchdat->start_entries[idx].label, bracket + 1, MAX_START_LABEL_SIZE - 1);
+					launchdat->start_entries[idx].label[MAX_START_LABEL_SIZE - 1] = '\0';
+				} else {
+					/* No label - just a filename */
+					strncpy(launchdat->start_entries[idx].file, token, MAX_FILENAME_SIZE - 1);
+					launchdat->start_entries[idx].file[MAX_FILENAME_SIZE - 1] = '\0';
+					launchdat->start_entries[idx].label[0] = '\0';
+				}
+				idx++;
+				token = strtok(NULL, ",");
+			}
+			launchdat->start_count = idx;
+		}
 	
 	} else if (MATCH("default", "alt_start")){
-		strncpy(launchdat->alt_start, value, MAX_FILENAME_SIZE);
+		/* Parse optional [Label] suffix, same as start= entries:
+		   alt_start=setup.exe[Setup Game]  or just  alt_start=setup.exe */
+		{
+			char alt_buf[MAX_FILENAME_SIZE + MAX_START_LABEL_SIZE];
+			char alt_file[MAX_FILENAME_SIZE];
+			char alt_label[MAX_START_LABEL_SIZE];
+			char *bracket;
+			char *endbracket;
+			
+			strncpy(alt_buf, value, sizeof(alt_buf) - 1);
+			alt_buf[sizeof(alt_buf) - 1] = '\0';
+			
+			bracket = strchr(alt_buf, '[');
+			if (bracket != NULL){
+				endbracket = strchr(bracket, ']');
+				*bracket = '\0';
+				strncpy(alt_file, alt_buf, MAX_FILENAME_SIZE - 1);
+				alt_file[MAX_FILENAME_SIZE - 1] = '\0';
+				if (endbracket != NULL) *endbracket = '\0';
+				strncpy(alt_label, bracket + 1, MAX_START_LABEL_SIZE - 1);
+				alt_label[MAX_START_LABEL_SIZE - 1] = '\0';
+			} else {
+				strncpy(alt_file, alt_buf, MAX_FILENAME_SIZE - 1);
+				alt_file[MAX_FILENAME_SIZE - 1] = '\0';
+				alt_label[0] = '\0';
+			}
+			
+			/* Store bare filename into legacy alt_start field */
+			strncpy(launchdat->alt_start, alt_file, MAX_FILENAME_SIZE - 1);
+			launchdat->alt_start[MAX_FILENAME_SIZE - 1] = '\0';
+			
+			/* Add to start_entries if not already captured via start= */
+			if (launchdat->start_count == 0 && strlen(alt_file) > 0){
+				/* start= was not set, treat alt_start as the only entry */
+				strncpy(launchdat->start_entries[0].file, alt_file, MAX_FILENAME_SIZE - 1);
+				launchdat->start_entries[0].file[MAX_FILENAME_SIZE - 1] = '\0';
+				strncpy(launchdat->start_entries[0].label, alt_label, MAX_START_LABEL_SIZE - 1);
+				launchdat->start_entries[0].label[MAX_START_LABEL_SIZE - 1] = '\0';
+				launchdat->start_count = 1;
+			} else if (launchdat->start_count > 0 && launchdat->start_count < MAX_START_ENTRIES && strlen(alt_file) > 0){
+				/* Append alt_start as an additional entry if not already in the list */
+				int already_present = 0;
+				int i;
+				for (i = 0; i < launchdat->start_count; i++){
+					if (strcmp(launchdat->start_entries[i].file, alt_file) == 0){
+						already_present = 1;
+						break;
+					}
+				}
+				if (!already_present){
+					strncpy(launchdat->start_entries[launchdat->start_count].file, alt_file, MAX_FILENAME_SIZE - 1);
+					launchdat->start_entries[launchdat->start_count].file[MAX_FILENAME_SIZE - 1] = '\0';
+					strncpy(launchdat->start_entries[launchdat->start_count].label, alt_label, MAX_START_LABEL_SIZE - 1);
+					launchdat->start_entries[launchdat->start_count].label[MAX_START_LABEL_SIZE - 1] = '\0';
+					launchdat->start_count++;
+				}
+			}
+		}
 		
 	} else if (MATCH("default", "images")){
 		strncpy(launchdat->images, value, IMAGE_BUFFER_SIZE);
@@ -326,6 +430,8 @@ void launchdataDefaults(launchdat_t *launchdat){
 	memset(launchdat->developer, '\0', strlen(launchdat->developer));
 	memset(launchdat->start, '\0', strlen(launchdat->start));
 	memset(launchdat->alt_start, '\0', strlen(launchdat->alt_start));
+	memset(launchdat->start_entries, '\0', sizeof(launchdat->start_entries));
+	launchdat->start_count = 0;
 	memset(launchdat->images, '\0', strlen(launchdat->images));
 	memset(launchdat->video,  '\0', MAX_FILENAME_SIZE);
 	memset(launchdat->audio, '\0', MAX_FILENAME_SIZE);

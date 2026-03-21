@@ -790,40 +790,118 @@ int ui_DrawInfoBox(){
 }
 
 int	ui_DrawLaunchPopup(state_t *state, gamedata_t *gamedata, launchdat_t *launchdat, int toggle){
-	// Draw the popup window that lets us select from the main or alternate start file
-	// in order to launch a game
+	// Draw the popup window that lets us select from the list of start entries.
+	// Supports scrolling when there are more entries than fit on screen.
+	// toggle == 1: move selection down by one; toggle == -1: move up by one; 0: no movement.
 	
-	int status;	
+	int i;
+	int screen_row;
+	int entry_idx;
+	int row_y;
+	int first_row_y;
+	int visible;
+	int max_visible;
+	char display[MAX_START_LABEL_SIZE + MAX_FILENAME_SIZE];
 	
-	// Draw drop-shadow
-	//gfx_BoxFillTranslucent(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 10, ui_launch_popup_xpos + 10 + ui_launch_popup_width, ui_launch_popup_ypos + 10 + ui_launch_popup_height, PALETTE_UI_DGREY);
+	// How many rows fit in the popup
+	max_visible = (ui_launch_popup_height - 40) / (ui_font_height + 4);
+	if (max_visible < 1) max_visible = 1;
+	first_row_y = ui_launch_popup_ypos + 30;
 	
-	// Draw main box
-	gfx_BoxFill(ui_launch_popup_xpos, ui_launch_popup_ypos, ui_launch_popup_xpos + ui_launch_popup_width, ui_launch_popup_ypos + ui_launch_popup_height, PALETTE_UI_BLACK);
-	
-	// Draw main box outline
-	gfx_Box(ui_launch_popup_xpos, ui_launch_popup_ypos, ui_launch_popup_xpos + ui_launch_popup_width, ui_launch_popup_ypos + ui_launch_popup_height, PALETTE_UI_LGREY);
-	
-	gfx_Puts(ui_launch_popup_xpos + 50, ui_launch_popup_ypos + 10, ui_font, "Select which file to run:");
-	
-	// Start file text
-	gfx_Puts(ui_launch_popup_xpos + 35, ui_launch_popup_ypos + 35, ui_font, launchdat->start);
-	
-	// Alt start file text
-	gfx_Puts(ui_launch_popup_xpos + 35, ui_launch_popup_ypos + 65, ui_font, launchdat->alt_start);
-	
+	// Move selection
 	if (toggle == 1){
-		state->selected_start = !state->selected_start;	
+		state->selected_start++;
+	}
+	if (toggle == -1){
+		state->selected_start--;
 	}
 	
-	if (state->selected_start == 0){
-		// Checkbox for start
-		gfx_Bitmap(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 35, ui_checkbox_bmp);
-		gfx_Bitmap(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 65, ui_checkbox_empty_bmp);		
-	} else {
-		// Checkbox for alt_start
-		gfx_Bitmap(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 35, ui_checkbox_empty_bmp);
-		gfx_Bitmap(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 65, ui_checkbox_bmp);
+	// Determine entry count: use start_entries if populated, else legacy 2-item fallback
+	int count = launchdat->start_count;
+	if (count == 0){
+		// Legacy fallback: build a virtual 2-entry list from start/alt_start
+		count = 0;
+		if (launchdat->start[0] != '\0')     count++;
+		if (launchdat->alt_start[0] != '\0') count++;
+	}
+	if (count < 1) count = 1;
+	
+	// Clamp selection
+	if (state->selected_start < 0){
+		state->selected_start = 0;
+	}
+	if (state->selected_start >= count){
+		state->selected_start = count - 1;
+	}
+	
+	// Scroll offset: keep selected entry visible
+	if (state->selected_start < state->exe_picker_scroll){
+		state->exe_picker_scroll = state->selected_start;
+	}
+	if (state->selected_start >= state->exe_picker_scroll + max_visible){
+		state->exe_picker_scroll = state->selected_start - max_visible + 1;
+	}
+	if (state->exe_picker_scroll < 0){
+		state->exe_picker_scroll = 0;
+	}
+	
+	// Full redraw: background, outline, title
+	gfx_BoxFill(ui_launch_popup_xpos, ui_launch_popup_ypos,
+	            ui_launch_popup_xpos + ui_launch_popup_width,
+	            ui_launch_popup_ypos + ui_launch_popup_height,
+	            PALETTE_UI_BLACK);
+	gfx_Box(ui_launch_popup_xpos, ui_launch_popup_ypos,
+	        ui_launch_popup_xpos + ui_launch_popup_width,
+	        ui_launch_popup_ypos + ui_launch_popup_height,
+	        PALETTE_UI_LGREY);
+	gfx_Puts(ui_launch_popup_xpos + 10, ui_launch_popup_ypos + 10, ui_font, "Select which file to run:");
+	
+	// Draw visible entries
+	visible = count - state->exe_picker_scroll;
+	if (visible > max_visible) visible = max_visible;
+	
+	for (screen_row = 0; screen_row < max_visible; screen_row++){
+		entry_idx = state->exe_picker_scroll + screen_row;
+		row_y = first_row_y + screen_row * (ui_font_height + 4);
+		
+		if (entry_idx < count){
+			// Determine display string
+			if (launchdat->start_count > 0){
+				// Use start_entries
+				if (launchdat->start_entries[entry_idx].label[0] != '\0'){
+					strncpy(display, launchdat->start_entries[entry_idx].label, sizeof(display) - 1);
+				} else {
+					strncpy(display, launchdat->start_entries[entry_idx].file, sizeof(display) - 1);
+				}
+			} else {
+				// Legacy fallback
+				if (entry_idx == 0){
+					strncpy(display, launchdat->start, sizeof(display) - 1);
+				} else {
+					strncpy(display, launchdat->alt_start, sizeof(display) - 1);
+				}
+			}
+			display[sizeof(display) - 1] = '\0';
+			
+			// Draw cursor icon and text
+			if (entry_idx == state->selected_start){
+				gfx_Bitmap(ui_launch_popup_xpos + 10, row_y, ui_checkbox_bmp);
+			} else {
+				gfx_Bitmap(ui_launch_popup_xpos + 10, row_y, ui_checkbox_empty_bmp);
+			}
+			gfx_Puts(ui_launch_popup_xpos + 35, row_y, ui_font, display);
+		}
+	}
+	
+	// Scroll indicators
+	if (state->exe_picker_scroll > 0){
+		gfx_Puts(ui_launch_popup_xpos + ui_launch_popup_width - 16,
+		         first_row_y, ui_font, "^");
+	}
+	if ((state->exe_picker_scroll + max_visible) < count){
+		gfx_Puts(ui_launch_popup_xpos + ui_launch_popup_width - 16,
+		         first_row_y + (max_visible - 1) * (ui_font_height + 4),
+		         ui_font, "v");
 	}
 	
 	return UI_OK;
