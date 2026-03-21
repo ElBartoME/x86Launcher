@@ -841,10 +841,31 @@ int main() {
 							filter_GetTechSpecs(state, gamedata, filterdat);
 						}
 
-						// Bring up the filter keyword selection pane
-						ui_DrawFilterPopup(state, 0, 0, 0);
-						gfx_Flip();
-						user_input = input_get();
+						// Only open filter popup if there are keywords to show
+						if (state->available_filter_strings > 0) {
+							// Bring up the filter keyword selection pane
+							ui_DrawFilterPopup(state, 0, 0, 0);
+							gfx_Flip();
+							user_input = input_get();
+						} else {
+							// No metadata available - bail back to browser pane
+							if (config->verbose) {
+								printf("%s.%d\t No filter keywords found (no launch.dat files?), closing filter popup\n", __FILE__, __LINE__);
+							}
+							active_pane = BROWSER_PANE;
+							ui_DrawMainWindow();
+							ui_UpdateBrowserPane(state, gamedata);
+							gfx_Flip();
+							ui_DrawInfoBox();
+							ui_ReselectCurrentGame(state);
+							ui_UpdateInfoPane(state, gamedata, launchdat);
+							ui_StatusMessage("No metadata found - filters unavailable");
+							ui_UpdateBrowserPaneStatus(state);
+							gfx_Flip();
+							ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+							gfx_Flip();
+							user_input = input_get();
+						}
 					}
 					break;
 				case (input_cancel):
@@ -960,45 +981,81 @@ int main() {
 					gfx_Flip();
 					break;
 				case (input_select):
-					if (state->selected_filter == FILTER_GENRE) {
-						// Now apply the chosen filter
-						status = filter_Genre(state, gamedata, filterdat);
-					}
+					{
+						// Save current selection state before applying filter,
+						// so we can restore it if the filter returns no results
+						int saved_gameid   = state->selected_gameid;
+						int saved_max      = state->selected_max;
+						int saved_page     = state->selected_page;
+						int saved_line     = state->selected_line;
+						int saved_pages    = state->total_pages;
+						gamedata_t *saved_game = state->selected_game;
+						unsigned int *saved_list = (unsigned int *) malloc(SELECTION_LIST_SIZE * sizeof(unsigned int));
+						if (saved_list != NULL) {
+							memcpy(saved_list, state->selected_list, SELECTION_LIST_SIZE * sizeof(unsigned int));
+						}
 
-					if (state->selected_filter == FILTER_SERIES) {
-						// Now apply the chosen filter
-						status = filter_Series(state, gamedata, filterdat);
-					}
+						if (state->selected_filter == FILTER_GENRE) {
+							status = filter_Genre(state, gamedata, filterdat);
+						}
+						if (state->selected_filter == FILTER_SERIES) {
+							status = filter_Series(state, gamedata, filterdat);
+						}
+						if (state->selected_filter == FILTER_COMPANY) {
+							status = filter_Company(state, gamedata, filterdat);
+						}
+						if (state->selected_filter == FILTER_TECH) {
+							status = filter_TechSpecs(state, gamedata, filterdat);
+						}
 
-					if (state->selected_filter == FILTER_COMPANY) {
-						// Now apply the chosen filter
-						status = filter_Company(state, gamedata, filterdat);
-					}
+						if (config->verbose) {
+							printf("%s.%d\t Closing filter popup(s)\n", __FILE__, __LINE__);
+						}
+						active_pane = BROWSER_PANE;
+						ui_DrawMainWindow();
 
-					if (state->selected_filter == FILTER_TECH) {
-						// Now apply the chosen filter
-						status = filter_TechSpecs(state, gamedata, filterdat);
+						if (state->selected_game != NULL) {
+							// Filter returned results - show the filtered list
+							if (config->verbose) {
+								printf("%s.%d\t Redrawing main screen for Game ID: %d, %s\n", __FILE__, __LINE__, state->selected_gameid, state->selected_game->name);
+							}
+							if (saved_list != NULL) { free(saved_list); }
+							ui_UpdateBrowserPane(state, gamedata);
+							gfx_Flip();
+							ui_DrawInfoBox();
+							ui_ReselectCurrentGame(state);
+							ui_UpdateInfoPane(state, gamedata, launchdat);
+							ui_UpdateBrowserPaneStatus(state);
+							gfx_Flip();
+							ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+						} else {
+							// Filter returned no results - restore previous selection
+							if (config->verbose) {
+								printf("%s.%d\t Filter returned no results, restoring previous selection\n", __FILE__, __LINE__);
+							}
+							state->selected_gameid = saved_gameid;
+							state->selected_max    = saved_max;
+							state->selected_page   = saved_page;
+							state->selected_line   = saved_line;
+							state->total_pages     = saved_pages;
+							state->selected_game   = saved_game;
+							if (saved_list != NULL) {
+								memcpy(state->selected_list, saved_list, SELECTION_LIST_SIZE * sizeof(unsigned int));
+								free(saved_list);
+							}
+							ui_UpdateBrowserPane(state, gamedata);
+							gfx_Flip();
+							ui_DrawInfoBox();
+							ui_ReselectCurrentGame(state);
+							ui_UpdateInfoPane(state, gamedata, launchdat);
+							ui_StatusMessage("No games match that filter");
+							ui_UpdateBrowserPaneStatus(state);
+							gfx_Flip();
+							ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
+						}
+						gfx_Flip();
+						user_input = input_get();
 					}
-
-					if (config->verbose) {
-						printf("%s.%d\t Closing filter popup(s)\n", __FILE__, __LINE__);
-					}
-					active_pane = BROWSER_PANE;
-					// exit and redraw main window
-					if (config->verbose) {
-						printf("%s.%d\t Redrawing main screen for Game ID: %d, %s\n", __FILE__, __LINE__, state->selected_gameid, state->selected_game->name);
-					}
-					ui_DrawMainWindow();
-					ui_UpdateBrowserPane(state, gamedata);
-					gfx_Flip();
-					ui_DrawInfoBox();
-					ui_ReselectCurrentGame(state);
-					ui_UpdateInfoPane(state, gamedata, launchdat);
-					ui_UpdateBrowserPaneStatus(state);
-					gfx_Flip();
-					ui_DisplayArtwork(screenshot_file, screenshot_bmp, screenshot_bmp_state, state, imagefile);
-					gfx_Flip();
-					user_input = input_get();
 					break;
 				case (input_cancel):
 					if (config->verbose) {
