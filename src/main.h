@@ -40,7 +40,7 @@ typedef struct state {
 	unsigned char selected_line;			// The line in the page indicating the selected game
 	unsigned char total_pages;			// Total number of pages in the selected_list
 	unsigned char active_pane;			// The pane which currently has focus
-	unsigned char selected_start;		// Which start file to launch, 0==start, 1==alt_start
+	int selected_start;				// Which start file to launch (index into start_entries, or 0/1 for legacy)
 	unsigned char page_changed;			// Whether we have browsed to a new page or not
 	
 	int selected_filter;					// Which filter to use, 0==none, 1==genre, 2==series

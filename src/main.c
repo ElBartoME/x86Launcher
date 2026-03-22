@@ -1106,19 +1106,28 @@ int main() {
 					gfx_Flip();
 					break;
 				case (input_up):
-					// Move selection up, scroll window if needed
+					// Move selection up with wrap-around
 					if (state->exe_picker_selected > 0) {
 						state->exe_picker_selected--;
+						ui_DrawExePickerPopup(state, exefile, 1);
+					} else {
+						// Wrap to last entry - full redraw needed as scroll jumps
+						state->exe_picker_selected = exefile->count - 1;
+						ui_DrawExePickerPopup(state, exefile, 0);
 					}
-					ui_DrawExePickerPopup(state, exefile, 1);
 					gfx_Flip();
 					break;
 				case (input_down):
-					// Move selection down, scroll window if needed
+					// Move selection down with wrap-around
 					if (state->exe_picker_selected < exefile->count - 1) {
 						state->exe_picker_selected++;
+						ui_DrawExePickerPopup(state, exefile, 1);
+					} else {
+						// Wrap to first entry - full redraw needed as scroll jumps
+						state->exe_picker_selected = 0;
+						state->exe_picker_scroll = 0;
+						ui_DrawExePickerPopup(state, exefile, 0);
 					}
-					ui_DrawExePickerPopup(state, exefile, 1);
 					gfx_Flip();
 					break;
 				case (input_select):

@@ -826,12 +826,14 @@ int	ui_DrawLaunchPopup(state_t *state, gamedata_t *gamedata, launchdat_t *launch
 	}
 	if (count < 1) count = 1;
 	
-	// Clamp selection
+	// Wrap-around selection
 	if (state->selected_start < 0){
-		state->selected_start = 0;
+		state->selected_start = count - 1;
+		state->exe_picker_scroll = (count > max_visible) ? count - max_visible : 0;
 	}
 	if (state->selected_start >= count){
-		state->selected_start = count - 1;
+		state->selected_start = 0;
+		state->exe_picker_scroll = 0;
 	}
 	
 	// Scroll offset: keep selected entry visible
