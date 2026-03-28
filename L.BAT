@@ -1,14 +1,12 @@
-ECHO OFF
-
-REM Start the launcher
+@ECHO OFF
 :launchstart
-launcher.exe >OUT.TXT
-
-
-REM On exit, run.bat will contain the startup for our selected game
-call run.bat
-
-
-REM Once exited from the game, return back to launcher
-REM goto launchstart
-
+SET LAUNCHDIR=C:\LAUNCHER
+C:
+CD %LAUNCHDIR%
+IF EXIST QUIT.TXT DEL QUIT.TXT
+launcher.exe > OUT.TXT
+IF EXIST QUIT.TXT GOTO end
+call %LAUNCHDIR%\run.bat
+IF ERRORLEVEL 1 GOTO end
+GOTO launchstart
+:end
