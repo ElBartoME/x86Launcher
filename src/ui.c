@@ -213,6 +213,7 @@ int ui_DisplayArtwork(FILE *screenshot_file, bmpdata_t *screenshot_bmp,
                    __FILE__, __LINE__);
         }
         pal_ResetFree();
+		pal_SetUI();
         status = bmp_ReadImage(screenshot_file, screenshot_bmp, 1, 1, 0);
         pal_BMP2Palette(screenshot_bmp, 0);
         pal_Set(0, 0, 0, 0);
@@ -1475,7 +1476,7 @@ int	ui_ReselectCurrentGame(state_t *state){
 	}
 		
 	selected = 0;
-	for(i = startpos; i <= endpos ; i++){
+	for(i = startpos; i < endpos ; i++){
 		gameid = state->selected_list[i];
 		
 		// This is the current selected game
