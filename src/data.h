@@ -16,6 +16,7 @@
 */
 
 #define SAVEFILE				"launcher.txt"		// A text file holding the list of all found directories
+#define LASTSELFILE			"lastsel.txt"		// A text file holding the last selected game ID
 #define INIFILE				"launcher.ini"		// the ini file holding settings for the main application
 #define GAMEDAT				"launch.dat"			// the name of the data file in the game dir to load
 #define RUNBAT				"run.bat"			// the name of the batch file which will contain the path to the chosen game exe

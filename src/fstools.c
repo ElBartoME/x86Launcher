@@ -399,10 +399,14 @@ int writeRunBatDirect(state_t *state, char *filename){
 	fprintf(runbat, "%s\n", filename);
 	
 	fclose(runbat);
+
+	// Remember which game was launched so the launcher can restore position on next start
+	saveLastSelection(state);
+
 	return 0;
 }
 
-int zeroRunBat(){
+int zeroRunBat(state_t *state){
     FILE *runbat;
     FILE *quitfile;
     
@@ -417,7 +421,65 @@ int zeroRunBat(){
     if (quitfile != NULL){
         fclose(quitfile);
     }
+    /* Remember where the user was so the launcher can restore position on next start */
+    if (state != NULL){
+        saveLastSelection(state);
+    }
     return 0;
+}
+
+/* Note: saveLastSelection() is called by the callers of zeroRunBat/writeRunBat
+   in main.c, because zeroRunBat() does not receive a state pointer.
+   writeRunBat and writeRunBatDirect save the selection themselves (see below). */
+
+int saveLastSelection(state_t *state){
+	/* Write the currently selected game ID to LASTSELFILE so the launcher
+	   can restore the cursor position when it is next started. */
+	FILE *f;
+
+	f = fopen(LASTSELFILE, "w");
+	if (f == NULL){
+		if (FS_VERBOSE){
+			printf("%s.%d\t saveLastSelection() Unable to write %s\n", __FILE__, __LINE__, LASTSELFILE);
+		}
+		return -1;
+	}
+	fprintf(f, "%d\n", state->selected_gameid);
+	fclose(f);
+	if (FS_VERBOSE){
+		printf("%s.%d\t saveLastSelection() Saved game ID %d to %s\n", __FILE__, __LINE__, state->selected_gameid, LASTSELFILE);
+	}
+	return 0;
+}
+
+int loadLastSelection(state_t *state){
+	/* Read the last selected game ID from LASTSELFILE into state->selected_gameid.
+	   Returns 0 on success, -1 if the file cannot be read or contains nothing useful.
+	   The caller is responsible for translating the gameid into the correct
+	   page/line values once the selection list has been built. */
+	FILE *f;
+	int gameid;
+
+	f = fopen(LASTSELFILE, "r");
+	if (f == NULL){
+		if (FS_VERBOSE){
+			printf("%s.%d\t loadLastSelection() %s not found – starting at top\n", __FILE__, __LINE__, LASTSELFILE);
+		}
+		return -1;
+	}
+	if (fscanf(f, "%d", &gameid) != 1){
+		fclose(f);
+		return -1;
+	}
+	fclose(f);
+	if (gameid < 0){
+		return -1;
+	}
+	state->selected_gameid = gameid;
+	if (FS_VERBOSE){
+		printf("%s.%d\t loadLastSelection() Restored game ID %d from %s\n", __FILE__, __LINE__, gameid, LASTSELFILE);
+	}
+	return 0;
 }
 
 int writeRunBat(state_t *state, launchdat_t *launchdat){
@@ -476,6 +538,9 @@ int writeRunBat(state_t *state, launchdat_t *launchdat){
 	
 	// Close run.bat
 	fclose(runbat);
-	
+
+	// Remember which game was launched so the launcher can restore position on next start
+	saveLastSelection(state);
+
 	return 0;
 }

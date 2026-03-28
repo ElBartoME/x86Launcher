@@ -493,6 +493,48 @@ int main() {
 
 	// Apply no-filtering to list, show all games
 	status = filter_None(state, gamedata);
+
+	// ======================
+	// Restore the last selected game (if any) so the cursor returns
+	// to where the user was before launching or quitting.
+	// ======================
+	{
+		int saved_gameid = state->selected_gameid; /* default set by filter_None */
+		int restore_status = loadLastSelection(state);
+		if (restore_status == 0) {
+			/* Scan selected_list to find the saved gameid and compute page/line */
+			int idx;
+			int found_in_list = 0;
+			for (idx = 0; idx < state->selected_max; idx++) {
+				if (state->selected_list[idx] == state->selected_gameid) {
+					state->selected_page = (idx / ui_browser_max_lines) + 1;
+					state->selected_line = idx % ui_browser_max_lines;
+					state->selected_game = getGameid(state->selected_gameid, gamedata);
+					found_in_list = 1;
+					break;
+				}
+			}
+			if (!found_in_list) {
+				/* Saved game no longer in list (e.g. removed) – fall back */
+				state->selected_gameid = saved_gameid;
+			}
+		}
+		/* Reload metadata for the (possibly restored) selected game */
+		state->has_launchdat = state->selected_game ? state->selected_game->has_dat : 0;
+		state->has_images = 0;
+		if (state->has_launchdat) {
+			status = getLaunchdata(state->selected_game, launchdat);
+			if (status != -1) {
+				state->has_launchdat = 1;
+				status = getImageList(launchdat, imagefile);
+				if (status != -1) {
+					state->has_images = 1;
+				}
+			} else {
+				state->has_launchdat = 0;
+			}
+		}
+	}
 	if (config->verbose) {
 		printf("%s.%d\t Initial selection state\n", __FILE__, __LINE__);
 		printf("%s.%d\t Info - selected_max: %d\n", __FILE__, __LINE__, state->selected_max);
@@ -638,7 +680,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_cancel):
 					if (config->verbose) {
@@ -682,7 +724,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_cancel):
 					if (config->verbose) {
@@ -738,7 +780,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_cancel):
 					if (config->verbose) {
@@ -778,7 +820,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_up):
 					if (config->verbose) {
@@ -915,7 +957,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_scroll_up):
 					// Page up key - move to next PAGE of filter keywords
@@ -1087,7 +1129,7 @@ int main() {
 			switch (user_input) {
 				case (input_quit):
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_cancel):
 					if (config->verbose) {
@@ -1155,7 +1197,7 @@ int main() {
 				case (input_quit):
 					// Exit the application
 					exit = 1;
-					zeroRunBat();
+					zeroRunBat(state);
 					break;
 				case (input_help):
 					// Show help screen

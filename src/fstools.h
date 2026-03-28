@@ -40,5 +40,7 @@ int 		findDirs(char *path, gamedata_t *gamedata, int startnum, config_t *config,
 int 		isDir(char *path);
 int 		writeRunBat(state_t *state, launchdat_t *launchdat);
 int 		writeRunBatDirect(state_t *state, char *filename);
-int 		zeroRunBat();
+int 		zeroRunBat(state_t *state);
 int 		findExeFiles(char *path, exefile_t *exefile);
+int 		saveLastSelection(state_t *state);
+int 		loadLastSelection(state_t *state);
