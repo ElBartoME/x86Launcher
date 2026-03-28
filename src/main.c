@@ -57,6 +57,7 @@
 #include "timers.h"
 
 #include "sb.h"
+#include "editor.h"
 
 int main() {
 
@@ -97,6 +98,7 @@ int main() {
 	launchdat_t *filterdat = NULL;          // Used when loading metadata files to filter games
 	imagefile_t *imagefile = NULL;          // When a single game is selected, we attempt to load a list of the screenshots from metadata
 	exefile_t *exefile = NULL;              // List of .EXE/.BAT/.COM files when no launch.dat is present
+	editorstate_t *editorstate = NULL;
 	//imagefile_t *imagefile_head = NULL;		// Constant pointer to the start of the game screenshot list
 	gamedir_t *gamedir = NULL;             // List of the game search directories, as defined in our INIFILE
 	config_t *config = NULL;               // Configuration data as defined in our INIFILE
@@ -151,6 +153,8 @@ int main() {
 	filterdat = (launchdat_t *) calloc(1, sizeof(launchdat_t));
 	launchdat->hardware = (hwdata_t *) calloc(1, sizeof(hwdata_t));
 	filterdat->hardware = (hwdata_t *) calloc(1, sizeof(hwdata_t));
+
+	editorstate = (editorstate_t *) calloc(1, sizeof(editorstate_t));
 
 	/* ************************************** */
 	/* Create an instance of the UI state data */
@@ -668,8 +672,11 @@ int main() {
 	while (exit == 0) {
 		sb_Tick();
 
-		user_input = input_get();
-
+		if (active_pane == EDITOR_PANE) {
+			user_input = input_none;
+		} else {
+			user_input = input_get();
+}
 		// ==================================================
 		//
 		// Pop-up to confirm launching our single choice
@@ -804,6 +811,107 @@ int main() {
 					break;
 				default:
 					break;
+			}
+		}
+
+		/* ================================================== */
+		/*  Metadata editor pane                              */
+		/* ================================================== */
+		if (active_pane == EDITOR_PANE) {
+			int ekey = input_get_char();
+			if (ekey != 0) {
+				int estatus = editor_HandleInput(editorstate, ekey, state->selected_game, launchdat);
+
+				if (estatus == EDITOR_SAVED) {
+					if (config->verbose) {
+						printf("%s.%d\t Editor saved metadata for Game ID: %d\n",
+							__FILE__, __LINE__, state->selected_gameid);
+					}
+					active_pane = BROWSER_PANE;
+					getLaunchdata(state->selected_game, launchdat);
+					ui_DrawMainWindow();
+					ui_UpdateBrowserPane(state, gamedata);
+					gfx_Flip();
+					ui_DrawInfoBox();
+					ui_ReselectCurrentGame(state);
+					ui_UpdateInfoPane(state, gamedata, launchdat);
+					ui_UpdateBrowserPaneStatus(state);
+					gfx_Flip();
+					ui_DisplayArtwork(screenshot_file, screenshot_bmp,
+									screenshot_bmp_state, state, imagefile);
+					gfx_Flip();
+					ui_StatusMessage("Metadata saved.");
+					gfx_Flip();
+
+				} else if (estatus == EDITOR_CANCELLED) {
+					if (config->verbose) {
+						printf("%s.%d\t Editor cancelled\n", __FILE__, __LINE__);
+					}
+					active_pane = BROWSER_PANE;
+					getLaunchdata(state->selected_game, launchdat);
+					ui_DrawMainWindow();
+					ui_UpdateBrowserPane(state, gamedata);
+					gfx_Flip();
+					ui_DrawInfoBox();
+					ui_ReselectCurrentGame(state);
+					ui_UpdateInfoPane(state, gamedata, launchdat);
+					ui_UpdateBrowserPaneStatus(state);
+					gfx_Flip();
+					ui_DisplayArtwork(screenshot_file, screenshot_bmp,
+									screenshot_bmp_state, state, imagefile);
+					gfx_Flip();
+
+				} else if (estatus == EDITOR_ERR_SAVE) {
+					ui_StatusMessage("ERROR: Could not save metadata file!");
+					gfx_Flip();
+
+				} else if (estatus == EDITOR_PREV_GAME || estatus == EDITOR_NEXT_GAME) {
+					int cur_idx = (state->selected_page - 1) * ui_browser_max_lines
+								+ state->selected_line;
+
+					if (estatus == EDITOR_NEXT_GAME) {
+						if (cur_idx < state->selected_max - 1) cur_idx++;
+					} else {
+						if (cur_idx > 0) cur_idx--;
+					}
+
+					state->selected_page   = (cur_idx / ui_browser_max_lines) + 1;
+					state->selected_line   = cur_idx % ui_browser_max_lines;
+					state->selected_gameid = state->selected_list[cur_idx];
+					state->selected_game   = getGameid(state->selected_gameid, gamedata);
+
+					if (state->selected_game != NULL && state->selected_game->has_dat) {
+						getLaunchdata(state->selected_game, launchdat);
+						/* Save current page position before reinit */
+						int saved_page      = editorstate->active_page;
+						int saved_hw_col    = editorstate->hw_col;
+						int saved_hw_row    = editorstate->hw_row;
+						int saved_files_row = editorstate->files_row;
+						editor_Init(editorstate, launchdat);
+						/* Restore page position */
+						editorstate->active_page  = saved_page;
+						editorstate->hw_col       = saved_hw_col;
+						editorstate->hw_row       = saved_hw_row;
+						editorstate->files_row    = saved_files_row;
+						editor_Draw(editorstate);
+						gfx_Flip();
+					} else {
+						active_pane = BROWSER_PANE;
+						ui_DrawMainWindow();
+						ui_UpdateBrowserPane(state, gamedata);
+						gfx_Flip();
+						ui_DrawInfoBox();
+						ui_ReselectCurrentGame(state);
+						ui_UpdateInfoPane(state, gamedata, launchdat);
+						ui_UpdateBrowserPaneStatus(state);
+						gfx_Flip();
+						ui_StatusMessage("Game has no metadata file.");
+						gfx_Flip();
+					}
+
+				} else if (estatus == EDITOR_OK) {
+					gfx_Flip();
+				}
 			}
 		}
 
@@ -1208,6 +1316,22 @@ int main() {
 					ui_DrawHelpPopup();
 					gfx_Flip();
 					break;
+				case (input_edit):
+					/* Only open the editor if the selected game has a launch.dat */
+					if (state->selected_game->has_dat && launchdat != NULL) {
+						if (config->verbose) {
+							printf("%s.%d\t Opening metadata editor for Game ID: %d\n",
+							__FILE__, __LINE__, state->selected_gameid);
+						}
+						editor_Init(editorstate, launchdat);
+						active_pane = EDITOR_PANE;
+						editor_Draw(editorstate);
+						gfx_Flip();
+					} else {
+						ui_StatusMessage("No metadata file - press E on a game with launch.dat");
+						gfx_Flip();
+					}
+					break;
 				case (input_filter):
 					// Show filter screen
 					if (config->verbose) {
@@ -1609,6 +1733,7 @@ int main() {
 	printf("%s.%d\t Deallocating objects\n", __FILE__, __LINE__);
 	removeGamedata(gamedata);
 	free(launchdat);
+	if (editorstate != NULL) free(editorstate);
 
 	//if (screenshot_file != NULL) fclose(screenshot_file);
 

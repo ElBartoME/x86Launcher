@@ -749,10 +749,11 @@ int ui_DrawHelpPopup(){
 	gfx_Puts(40, 45, ui_font, "Key controls:");
 	gfx_Puts(40, 65, ui_font, "- [F]      Bring up the game search/filter window");
 	gfx_Puts(40, 85, ui_font, "- [H]      Show this help text window");
-	gfx_Puts(40, 105, ui_font, "- [Q]      Quit the application");
-	gfx_Puts(40, 125, ui_font, "- [Space]  Select a filter in a multi-select filter window");
-	gfx_Puts(40, 145, ui_font, "- [Enter]  Confirm a filter choice or launch selected gameq");
-	gfx_Puts(40, 165, ui_font, "- [Esc]    Close the current window or Cancel a selection");
+	gfx_Puts(40, 105, ui_font, "- [E]      Edit metadata for the selected game");
+	gfx_Puts(40, 125, ui_font, "- [Q]      Quit the application");
+	gfx_Puts(40, 145, ui_font, "- [Space]  Select a filter in a multi-select filter window");
+	gfx_Puts(40, 165, ui_font, "- [Enter]  Confirm a filter choice or launch selected game");
+	gfx_Puts(40, 185, ui_font, "- [Esc]    Close the current window or Cancel a selection");
 	
 	// Filter help
 	gfx_Puts(40, 200, ui_font, "Search/Filter:");

@@ -171,22 +171,24 @@
 #define UI_OK					0
 #define UI_ERR_FILE				-1
 #define UI_ERR_BMP				-2
-#define UI_ERR_FUNCTION_CALL		-3
-#define UI_ASSETS_LOADED			255
+#define UI_ERR_FUNCTION_CALL	-3
+#define UI_ASSETS_LOADED		255
 #define UI_ASSETS_MISSING		254
 
 // Labels for active panes
 #define PANE_FIRST				0x01
-#define BROWSER_PANE				0x01
-#define ARTWORK_PANE				0x02
+#define BROWSER_PANE			0x01
+#define ARTWORK_PANE			0x02
 #define INFO_PANE				0x03
 #define LAUNCH_PANE				0x04
-#define CONFIRM_PANE				0x05
+#define CONFIRM_PANE			0x05
 #define FILTER_PRE_PANE			0x06
 #define FILTER_PANE				0x07
 #define HELP_PANE				0x08
 #define EXE_PICKER_PANE			0x09
-#define PANE_MAX					0x09
+#define EDITOR_PANE             0x0A
+#define PANE_MAX				0x0A
+
 
 // Exe picker popup layout
 #define ui_exe_picker_xpos		100

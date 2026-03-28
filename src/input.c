@@ -65,6 +65,8 @@ int input_get(){
 				return input_filter;
 			case(input_help):
 				return input_help;
+			case(input_edit):
+				return input_edit;
 			default:
 				if (INPUT_VERBOSE){
 					printf("Unrecognised input: %x\n", k);
@@ -254,4 +256,27 @@ int input_test(){
 	}
 	exit = 0;
 	return 0;	
+}
+
+int input_get_char() {
+    int k;
+
+    delay(KB_DELAY);
+
+    if (!kbhit()) {
+        return 0;
+    }
+
+    k = getch();            /* First byte - 0x00 means extended key */
+    if (k == 0) {
+        k = getch() + 0x100;  /* Second byte + offset = unambiguous extended key */
+    }
+
+    /* Drain any remaining queued keys */
+    while (kbhit()) {
+        int discard = getch();
+        if (discard == 0 && kbhit()) getch();
+    }
+
+    return k;
 }

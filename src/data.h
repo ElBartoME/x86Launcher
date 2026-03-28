@@ -154,6 +154,7 @@ int				removeGamedata(gamedata_t *gamedata);
 int 				sortGamedata(gamedata_t *gamedata, int verbose);
 int 				swapGamedata(gamedata_t *gamedata1, gamedata_t *gamedata2);
 int 				getLaunchdata(gamedata_t *gamedata, launchdat_t *launchdat);
+int             	saveLaunchdat(gamedata_t *gamedata, launchdat_t *launchdat);
 int 				getImageList(launchdat_t *launchdat, imagefile_t *imagefile);
 int 				getIni(config_t *config, int verbose);
 int 				getDirList(config_t *config, gamedir_t *gamedir, int verbose);

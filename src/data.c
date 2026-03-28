@@ -710,3 +710,151 @@ int getDirList(config_t *config, gamedir_t *gamedir, int verbose){
 	}	
 	return found;
 }
+
+int saveLaunchdat(gamedata_t *gamedata, launchdat_t *launchdat) {
+	/* Write a launchdat_t back to the game's launch.dat file.
+	   The file is rewritten in full.  Fields that the editor does
+	   not touch (start=, images=, hardware flags, etc.) are
+	   preserved verbatim from whatever is currently in the struct,
+	   so no data is lost. */
+ 
+	FILE *f;
+	char filepath[MAX_PATH_SIZE];
+	int  i;
+ 
+	snprintf(filepath, sizeof(filepath), "%s\\%s", gamedata->path, GAMEDAT);
+ 
+	if (DATA_VERBOSE) {
+		printf("%s.%d\t saveLaunchdat() Writing %s\n", __FILE__, __LINE__, filepath);
+	}
+ 
+	f = fopen(filepath, "w");
+	if (f == NULL) {
+		if (DATA_VERBOSE) {
+			printf("%s.%d\t saveLaunchdat() Cannot open %s for writing\n", __FILE__, __LINE__, filepath);
+		}
+		return -1;
+	}
+ 
+	/* ---- [default] section ---- */
+	fprintf(f, "[default]\n");
+ 
+	if (strlen(launchdat->realname) > 0) {
+		fprintf(f, "name=%s\n", launchdat->realname);
+	}
+	if (strlen(launchdat->genre) > 0) {
+		fprintf(f, "genre=%s\n", launchdat->genre);
+	}
+	if (strlen(launchdat->series) > 0) {
+		fprintf(f, "series=%s\n", launchdat->series);
+	}
+	if (strlen(launchdat->developer) > 0) {
+		fprintf(f, "developer=%s\n", launchdat->developer);
+	}
+	if (strlen(launchdat->publisher) > 0) {
+		fprintf(f, "publisher=%s\n", launchdat->publisher);
+	}
+	if (launchdat->year > 0) {
+		fprintf(f, "year=%d\n", launchdat->year);
+	}
+	if (launchdat->midi) {
+		fprintf(f, "midi_mpu=1\n");
+	}
+	if (launchdat->midi_serial) {
+		fprintf(f, "midi_serial=1\n");
+	}
+ 
+	/* start= entries: write in the comma-separated [Label] format so
+	   a subsequent parse round-trips cleanly. */
+	if (launchdat->start_count > 0) {
+		fprintf(f, "start=");
+		for (i = 0; i < launchdat->start_count; i++) {
+			if (i > 0) {
+				fprintf(f, ",");
+			}
+			if (strlen(launchdat->start_entries[i].label) > 0) {
+				fprintf(f, "%s[%s]",
+					launchdat->start_entries[i].file,
+					launchdat->start_entries[i].label);
+			} else {
+				fprintf(f, "%s", launchdat->start_entries[i].file);
+			}
+		}
+		fprintf(f, "\n");
+	} else if (strlen(launchdat->start) > 0) {
+		/* Legacy single-entry fallback */
+		fprintf(f, "start=%s\n", launchdat->start);
+		if (strlen(launchdat->alt_start) > 0) {
+			fprintf(f, "alt_start=%s\n", launchdat->alt_start);
+		}
+	}
+ 
+	if (strlen(launchdat->images) > 0) {
+		fprintf(f, "images=%s\n", launchdat->images);
+	}
+	if (strlen(launchdat->video) > 0) {
+		fprintf(f, "video=%s\n", launchdat->video);
+	}
+	if (strlen(launchdat->audio) > 0) {
+		fprintf(f, "audio=%s\n", launchdat->audio);
+	}
+ 
+	/* ---- [sound] section - only emit if any flag is set ---- */
+	if (launchdat->hardware->beeper      || launchdat->hardware->tandy_audio ||
+	    launchdat->hardware->adlib       || launchdat->hardware->soundblaster ||
+	    launchdat->hardware->mt32        || launchdat->hardware->gm ||
+	    launchdat->hardware->covox       || launchdat->hardware->disney ||
+	    launchdat->hardware->ultrasound) {
+ 
+		fprintf(f, "\n[sound]\n");
+		if (launchdat->hardware->beeper)      fprintf(f, "beeper=1\n");
+		if (launchdat->hardware->tandy_audio) fprintf(f, "tandy=1\n");
+		if (launchdat->hardware->adlib)       fprintf(f, "adlib=1\n");
+		if (launchdat->hardware->soundblaster)fprintf(f, "soundblaster=1\n");
+		if (launchdat->hardware->mt32)        fprintf(f, "mt32=1\n");
+		if (launchdat->hardware->gm)          fprintf(f, "gm=1\n");
+		if (launchdat->hardware->covox)       fprintf(f, "covox=1\n");
+		if (launchdat->hardware->disney)      fprintf(f, "disney=1\n");
+		if (launchdat->hardware->ultrasound)  fprintf(f, "ultrasound=1\n");
+	}
+ 
+	/* ---- [video] section ---- */
+	if (launchdat->hardware->text     || launchdat->hardware->hercules ||
+	    launchdat->hardware->tandy_video || launchdat->hardware->cga  ||
+	    launchdat->hardware->ega      || launchdat->hardware->vga     ||
+	    launchdat->hardware->svga) {
+ 
+		fprintf(f, "\n[video]\n");
+		if (launchdat->hardware->text)       fprintf(f, "text=1\n");
+		if (launchdat->hardware->hercules)   fprintf(f, "hercules=1\n");
+		if (launchdat->hardware->tandy_video)fprintf(f, "tandy=1\n");
+		if (launchdat->hardware->cga)        fprintf(f, "cga=1\n");
+		if (launchdat->hardware->ega)        fprintf(f, "ega=1\n");
+		if (launchdat->hardware->vga)        fprintf(f, "vga=1\n");
+		if (launchdat->hardware->svga)       fprintf(f, "svga=1\n");
+	}
+ 
+	/* ---- [cpu] section ---- */
+	if (launchdat->hardware->cpu_8086 || launchdat->hardware->cpu_286 ||
+	    launchdat->hardware->cpu_386  || launchdat->hardware->cpu_486 ||
+	    launchdat->hardware->cpu_586  || launchdat->hardware->ram_xms ||
+	    launchdat->hardware->ram_ems  || launchdat->hardware->dpmi) {
+ 
+		fprintf(f, "\n[cpu]\n");
+		if (launchdat->hardware->cpu_8086) fprintf(f, "8086=1\n");
+		if (launchdat->hardware->cpu_286)  fprintf(f, "286=1\n");
+		if (launchdat->hardware->cpu_386)  fprintf(f, "386=1\n");
+		if (launchdat->hardware->cpu_486)  fprintf(f, "486=1\n");
+		if (launchdat->hardware->cpu_586)  fprintf(f, "586=1\n");
+		if (launchdat->hardware->ram_xms)  fprintf(f, "xms=1\n");
+		if (launchdat->hardware->ram_ems)  fprintf(f, "ems=1\n");
+		if (launchdat->hardware->dpmi)     fprintf(f, "dpmi=1\n");
+	}
+ 
+	fclose(f);
+ 
+	if (DATA_VERBOSE) {
+		printf("%s.%d\t saveLaunchdat() Wrote %s OK\n", __FILE__, __LINE__, filepath);
+	}
+	return 0;
+}

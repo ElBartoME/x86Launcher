@@ -583,6 +583,7 @@ int fli_PlayPreview(const char *path, int dst_x, int dst_y, int dst_w,
             switch (key) {
                 case 'h': case 'H':
                 case 'q': case 'Q':
+                case 'e': case 'E':
                 case 'f': case 'F':
                 case 27:   /* Escape */
                 case 13:   /* Enter */
