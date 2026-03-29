@@ -267,10 +267,10 @@ int input_get_char() {
         return 0;
     }
 
-    k = getch();            /* First byte - 0x00 means extended key */
-    if (k == 0) {
-        k = getch() + 0x100;  /* Second byte + offset = unambiguous extended key */
-    }
+	k = getch();
+	if (k == 0 || k == 0xE0) {
+		k = getch() + 0x100;
+	}
 
     /* Drain any remaining queued keys */
     while (kbhit()) {

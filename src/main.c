@@ -86,7 +86,7 @@ int main() {
 	char msg[64];                           // Message buffer
 	clock_t start_time, end_time, end_time2;// Performance counters, set 1
 	clock_t t1, t2;                         // Performance counters, set 2
-	clock_t last;                           // Timer for detecting last user input
+	clock_t last = 0;                       // Timer for detecting last user input (0 ensures artwork fires immediately on first loop)
 	FILE *screenshot_file;                  // File handle for artwork bitmap reading
 	FILE *savefile;                         // File handle for saving game list data
 	state_t *state = NULL;                  // Current state of the UI, including selected game, page, etc
